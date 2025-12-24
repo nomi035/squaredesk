@@ -1,5 +1,8 @@
 import { BaseEntity } from 'base.entity';
-import { Column, Entity } from 'typeorm';
+import { Department } from 'src/department/entities/department.entity';
+import { Designation } from 'src/designation/entities/designation.entity';
+import { Office } from 'src/office/entities/office.entity';
+import { Column, Entity, JoinColumn, OneToOne } from 'typeorm';
 
 @Entity('User')
 export class User extends BaseEntity {
@@ -24,12 +27,6 @@ export class User extends BaseEntity {
   @Column({ nullable: true })
   zip: string;
   @Column({ nullable: true })
-  office:string
-  @Column({ nullable: true })
-  department:string
-  @Column({ nullable: true })
-  designation:string
-  @Column({ nullable: true })
   employmentType:string
   @Column({ nullable: true })
   ptoDays:number
@@ -41,6 +38,23 @@ export class User extends BaseEntity {
   emergencyRelation:string
   @Column({nullable:true})
   role: Role;
+  @Column({  })
+  officeId:number
+  @Column({  })
+  departmentId:number
+  @Column({  })
+  designationId:number
+  @OneToOne(() => Office,{onDelete:'CASCADE'})
+  @JoinColumn({ name: 'officeId' })
+  office: Office;
+  @OneToOne(() => Department,{onDelete:'CASCADE'})
+  @JoinColumn({ name: 'departmentId' })
+  department: Department;
+  @OneToOne(() => Designation,{onDelete:'CASCADE'})
+  @JoinColumn({ name: 'designationId' })
+  designation: Designation;
+
+
 }
 
 export enum Role {

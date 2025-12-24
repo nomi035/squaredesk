@@ -24,11 +24,11 @@ export class CreateUserDto {
  @ApiProperty()
   zip: string;
  @ApiProperty()
-  office:string
+  officeId:number
  @ApiProperty()
-  department:string
+  departmentId:number
  @ApiProperty()
-  designation:string
+  designationId:number
  @ApiProperty()
   employmentType:string
  @ApiProperty()
