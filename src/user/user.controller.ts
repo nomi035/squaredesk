@@ -13,7 +13,6 @@ import { JwtAuthGuard } from 'src/auth/guard';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @ApiBody(UserSwaggerSchema.createUserBody)
   @Post()
   async create(@Body() createUserDto: CreateUserDto) {
     const userExists = await this.userService.findByEmail(createUserDto.email);
