@@ -9,7 +9,6 @@ export class CreateBreakDto {
 
     @ApiProperty()
     duration: string
+    
 
-    @ApiProperty()
-    attendanceId: number;
 }

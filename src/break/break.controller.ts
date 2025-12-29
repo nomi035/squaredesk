@@ -7,10 +7,10 @@ import { UpdateBreakDto } from './dto/update-break.dto';
 export class BreakController {
   constructor(private readonly breakService: BreakService) {}
 
-  @Post()
-  create(@Body() createBreakDto: CreateBreakDto) {
-    return this.breakService.create(createBreakDto);
-  }
+  // @Post()
+  // create(@Body() createBreakDto: CreateBreakDto) {
+  //   return this.breakService.create(createBreakDto);
+  // }
 
   @Get()
   findAll() {

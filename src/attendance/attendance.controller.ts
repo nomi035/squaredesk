@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto';
@@ -45,10 +45,14 @@ export class AttendanceController {
     })
 
       }
-          @Post('/break')
-  createBreak(@Body()createBreakDto: CreateBreakDto) {
-    return this.breakService.create(createBreakDto);
-  }
+ @Post(':attendanceId/breaks')
+async addBreak(
+  @Param('attendanceId', ParseIntPipe) attendanceId: number,
+  @Body() dto: CreateBreakDto,
+) {
+  const attendance = await this.attendanceService.findOne(attendanceId);
+  return this.breakService.create(dto, attendance)
+}
   
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)

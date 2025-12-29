@@ -15,8 +15,7 @@ export class Break extends BaseEntity {
     })
     duration:string
 
-    @Column()
-    attendanceId: number;
+   
 
     @ManyToOne(() => Attendance, attendance => attendance.breaks,)
     @JoinColumn({ name: 'attendanceId' })
