@@ -8,10 +8,10 @@ export class CreateAttendanceDto {
         checkinTime: string;
     
        @ApiProperty()
-        checkoutDate: Date;
+        checkoutDate?: Date;
     
        @ApiProperty()
-        checkoutTime: string;
+        checkoutTime?: string;
     
         @ApiProperty()
         employeeId: number;

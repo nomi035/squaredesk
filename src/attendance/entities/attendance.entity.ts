@@ -1,6 +1,7 @@
 import { BaseEntity } from "base.entity";
+import { Break } from "src/break/entities/break.entity";
 import { User } from "src/user/entities/user.entity";
-import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from "typeorm";
 
 @Entity('attendances')
 export class Attendance extends BaseEntity {
@@ -22,6 +23,9 @@ export class Attendance extends BaseEntity {
     @ManyToOne(() => User, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'employeeId' })
     employee: User;
+
+    @OneToMany(() => Break, (breakEntity) => breakEntity.attendance, { cascade: true })
+    breaks: Break[];
 
 
 }

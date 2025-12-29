@@ -39,8 +39,14 @@ export class UserController {
 
   @Get('/office/based')
   @UseGuards(JwtAuthGuard)
-  findAllBranch(@Query('role') role: Role,@currentUser() user: any) {
-   return this.userService.findAllByOffice(role,user.organization);
+  async findAllOffice(@Query('role') role: Role,@currentUser() user: any) {
+    const activeUser=await this.userService.findOne(user.userId);
+    return this.userService.findAllByOffice(role,activeUser.officeId);
+  }
+   @Get('/organization/based')
+  @UseGuards(JwtAuthGuard)
+  findAllByOrganization(@Query('role') role: Role,@currentUser() user: any) {
+   return this.userService.findAllByOrganization(role,user.organization);
   }
 
   @Get(':id')

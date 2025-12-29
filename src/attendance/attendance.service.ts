@@ -33,18 +33,21 @@ export class AttendanceService {
   }
 
   findByEmployeeId(employeeId: number) {
-    return this.attendanceRepository.find({ where: { employeeId } });
+    return this.attendanceRepository.find({ where: { employeeId },
+    order: { createdAt: 'DESC' },
+  relations: ['breaks']  });
   }
-  async getTodayAttendance() {
+  async getTodayAttendance(employeeId: number) {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    return this.attendanceRepository.find({
+    return this.attendanceRepository.findOne({
       where: {
         createdAt: Between(startOfDay, endOfDay),
+        employeeId: employeeId,
       },
     });
   }

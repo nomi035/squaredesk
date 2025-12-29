@@ -19,7 +19,7 @@ async  create(createUserDto: CreateUserDto) {
    return await this.usersRepository.find();
   }
 
-   async findAllByOffice(role:Role,organizationId:number) {
+   async findAllByOrganization(role:Role,organizationId:number) {
    return await this.usersRepository.findAndCount({
     where: {
       role,
@@ -33,6 +33,19 @@ async  create(createUserDto: CreateUserDto) {
 
    });
   }
+  async  findAllByOffice(role:Role,officeId:number) {
+    return await this.usersRepository.findAndCount({
+     where: {
+       role,
+      officeId
+     },
+     relations:{
+       office:true
+     }
+ 
+    });
+   }
+  
   async findByEmail(email: string) {
     return await this.usersRepository.findOne({where:{email}});
 
