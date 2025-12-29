@@ -17,7 +17,7 @@ export class DepartmentController {
     return this.departmentService.create({...createDepartmentDto,organizationId:user.organization});
   }
 
-    @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Get()
   findAll(@currentUser() user:any) {

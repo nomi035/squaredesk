@@ -1,22 +1,28 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { AssignmentsService } from './assignments.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from 'src/auth/guard/auth.gaurd';
+import { currentUser } from 'src/decorators/currentuser';
 
 @ApiTags('assignments')
 @Controller('assignments')
 export class AssignmentsController {
   constructor(private readonly assignmentsService: AssignmentsService) {}
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Post()
-  create(@Body() createAssignmentDto: CreateAssignmentDto) {
-    return this.assignmentsService.create(createAssignmentDto);
+  create(@Body() createAssignmentDto: CreateAssignmentDto, @currentUser() user:any) {
+    return this.assignmentsService.create({...createAssignmentDto, organizationId: user.organization});
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get()
-  findAll() {
-    return this.assignmentsService.findAll();
+  findAll(@currentUser() user:any) {
+    return this.assignmentsService.findAll(user.organization);
   }
 
   @Get(':id')

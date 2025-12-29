@@ -1,5 +1,6 @@
 import { BaseEntity } from "base.entity";
-import { Column, Entity } from "typeorm";
+import { Organization } from "src/organizations/entities/organization.entity";
+import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
 @Entity('assignments')
 export class Assignment extends BaseEntity
 {
@@ -8,4 +9,11 @@ export class Assignment extends BaseEntity
 
     @Column()
     colour: string;
+
+      @Column({ nullable: true })
+      organizationId: number;
+    
+      @ManyToOne(() => Organization, { onDelete: 'CASCADE' })
+      @JoinColumn({ name: 'organizationId' })
+      organization: Organization;
 }

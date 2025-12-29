@@ -47,13 +47,13 @@ export class User extends BaseEntity {
   designationId:number
   @Column({ nullable: true })
   organizationId: number;
-  @OneToOne(() => Office,{onDelete:'CASCADE'})
+  @ManyToOne(() => Office,{onDelete:'CASCADE'})
   @JoinColumn({ name: 'officeId' })
   office: Office;
-  @OneToOne(() => Department,{onDelete:'CASCADE'})
+  @ManyToOne(() => Department,{onDelete:'CASCADE'})
   @JoinColumn({ name: 'departmentId' })
   department: Department;
-  @OneToOne(() => Designation,{onDelete:'CASCADE'})
+  @ManyToOne(() => Designation,{onDelete:'CASCADE'})
   @JoinColumn({ name: 'designationId' })
   designation: Designation;
   @ManyToOne(() => Organization,{onDelete:'CASCADE'})
