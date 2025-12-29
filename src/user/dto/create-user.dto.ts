@@ -41,4 +41,5 @@ export class CreateUserDto {
   emergencyRelation:string
  @ApiProperty()
   role: Role;
+  organizationId: number;
 }

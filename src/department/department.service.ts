@@ -14,8 +14,10 @@ export class DepartmentService {
     return this.departmentRepository.save(createDepartmentDto);
 
   }
-  findAll() {
-    return this.departmentRepository.find();
+  findAll(id:number) {
+    return this.departmentRepository.find({
+      where: { organizationId: id }
+    });
   }
 
   findOne(id: number) {

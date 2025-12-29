@@ -11,6 +11,9 @@ import { DepartmentModule } from './department/department.module';
 import { DesignationModule } from './designation/designation.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { AssignmentsModule } from './assignments/assignments.module';
+import { PtoModule } from './pto/pto.module';
+import { OrganizationsModule } from './organizations/organizations.module';
+import { BreakModule } from './break/break.module';
 
 @Module({
   imports: [UserModule,
@@ -33,7 +36,10 @@ import { AssignmentsModule } from './assignments/assignments.module';
      DepartmentModule,
      DesignationModule,
      AttendanceModule,
-     AssignmentsModule,],
+     AssignmentsModule,
+     PtoModule,
+     OrganizationsModule,
+     BreakModule,],
   controllers: [AppController],
   providers: [AppService],
 })

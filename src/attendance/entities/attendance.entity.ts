@@ -23,9 +23,5 @@ export class Attendance extends BaseEntity {
     @JoinColumn({ name: 'employeeId' })
     employee: User;
 
-    @Column({ type: 'jsonb', nullable: true })
-    breaks: {
-        startTime: string;
-        endTime: string;
-    }[];
+
 }

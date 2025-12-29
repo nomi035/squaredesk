@@ -1,10 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpException, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, HttpException, UseGuards, Query } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 import { UserSwaggerSchema } from './user.swagger-schema';
 import { JwtAuthGuard } from 'src/auth/guard';
+import { currentUser } from 'src/decorators/currentuser';
+import { Role } from './entities/user.entity';
 
 
 @Controller('user')
@@ -13,20 +15,32 @@ import { JwtAuthGuard } from 'src/auth/guard';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Post()
-  async create(@Body() createUserDto: CreateUserDto) {
+  async create(@Body() createUserDto: CreateUserDto,@currentUser() user:any) {
     const userExists = await this.userService.findByEmail(createUserDto.email);
     console.log("i am user",userExists)
     if(userExists)
       throw new HttpException('User already exists', 400);
-    return this.userService.create(createUserDto);
+
+    return this.userService.create({
+      ...createUserDto,
+      organizationId: user.organization,
+    });
   }
 
-  @UseGuards(JwtAuthGuard)
+
 
   @Get()
   findAll() {
     return this.userService.findAll();
+  }
+
+  @Get('/office/based')
+  @UseGuards(JwtAuthGuard)
+  findAllBranch(@Query('role') role: Role,@currentUser() user: any) {
+   return this.userService.findAllByOffice(role,user.organization);
   }
 
   @Get(':id')

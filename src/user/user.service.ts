@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from './entities/user.entity';
+import { Role, User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 
 @Injectable()
@@ -19,6 +19,20 @@ async  create(createUserDto: CreateUserDto) {
    return await this.usersRepository.find();
   }
 
+   async findAllByOffice(role:Role,organizationId:number) {
+   return await this.usersRepository.findAndCount({
+    where: {
+      role,
+      organization:{
+        id:organizationId
+      }
+    },
+    relations:{
+      organization:true
+    }
+
+   });
+  }
   async findByEmail(email: string) {
     return await this.usersRepository.findOne({where:{email}});
 

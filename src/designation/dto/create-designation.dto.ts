@@ -6,4 +6,6 @@ export class CreateDesignationDto {
     
     @ApiProperty()
     description:string;
+
+     organizationId: number;
 }

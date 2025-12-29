@@ -15,8 +15,10 @@ export class DesignationService {
     return this.designationRepository.save(designation);
   }
 
-  findAll() {
-    return this.designationRepository.find();
+  findAll(id:number) {
+    return this.designationRepository.find({
+      where: { organizationId: id }
+    });
   }
 
   findOne(id: number) {

@@ -16,10 +16,4 @@ export class CreateAttendanceDto {
         @ApiProperty()
         employeeId: number;
     
-    
-        @ApiProperty()
-        breaks: {
-            startTime: string;
-            endTime: string;
-        }[];
 }

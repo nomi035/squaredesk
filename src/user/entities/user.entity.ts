@@ -2,7 +2,8 @@ import { BaseEntity } from 'base.entity';
 import { Department } from 'src/department/entities/department.entity';
 import { Designation } from 'src/designation/entities/designation.entity';
 import { Office } from 'src/office/entities/office.entity';
-import { Column, Entity, JoinColumn, OneToOne } from 'typeorm';
+import { Organization } from 'src/organizations/entities/organization.entity';
+import { Column, Entity, JoinColumn, ManyToOne, OneToOne } from 'typeorm';
 
 @Entity('User')
 export class User extends BaseEntity {
@@ -44,6 +45,8 @@ export class User extends BaseEntity {
   departmentId:number
   @Column({  })
   designationId:number
+  @Column({ nullable: true })
+  organizationId: number;
   @OneToOne(() => Office,{onDelete:'CASCADE'})
   @JoinColumn({ name: 'officeId' })
   office: Office;
@@ -53,6 +56,9 @@ export class User extends BaseEntity {
   @OneToOne(() => Designation,{onDelete:'CASCADE'})
   @JoinColumn({ name: 'designationId' })
   designation: Designation;
+  @ManyToOne(() => Organization,{onDelete:'CASCADE'})
+  @JoinColumn({ name: 'organizationId' })
+  organization: Organization;
 
 
 }

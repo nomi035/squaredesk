@@ -4,6 +4,7 @@ import { UpdateAttendanceDto } from './dto/update-attendance.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Attendance } from './entities/attendance.entity';
 import { Repository } from 'typeorm/repository/Repository';
+import { Between } from 'typeorm';
 
 @Injectable()
 export class AttendanceService {
@@ -12,7 +13,7 @@ export class AttendanceService {
   }
   create(createAttendanceDto: CreateAttendanceDto) {
     const attendance = this.attendanceRepository.create(createAttendanceDto);
-    return this.attendanceRepository.save(attendance) ;
+    return this.attendanceRepository.save(attendance);
   }
 
   findAll() {
@@ -20,18 +21,31 @@ export class AttendanceService {
   }
 
   findOne(id: number) {
-    return  this.attendanceRepository.findOne({ where: { id } });
+    return this.attendanceRepository.findOne({ where: { id } });
   }
 
   update(id: number, updateAttendanceDto: UpdateAttendanceDto) {
-    return  this.attendanceRepository.update(id, updateAttendanceDto);
+    return this.attendanceRepository.update(id, updateAttendanceDto);
   }
 
   remove(id: number) {
-    return  this.attendanceRepository.delete(id);
+    return this.attendanceRepository.delete(id);
   }
 
   findByEmployeeId(employeeId: number) {
     return this.attendanceRepository.find({ where: { employeeId } });
+  }
+  async getTodayAttendance() {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return this.attendanceRepository.find({
+      where: {
+        createdAt: Between(startOfDay, endOfDay),
+      },
+    });
   }
 }

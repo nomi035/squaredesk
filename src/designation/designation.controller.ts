@@ -1,22 +1,28 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { DesignationService } from './designation.service';
 import { CreateDesignationDto } from './dto/create-designation.dto';
 import { UpdateDesignationDto } from './dto/update-designation.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from 'src/auth/guard';
+import { currentUser } from 'src/decorators/currentuser';
 
 @ApiTags('designation')
 @Controller('designation')
 export class DesignationController {
   constructor(private readonly designationService: DesignationService) {}
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Post()
-  create(@Body() createDesignationDto: CreateDesignationDto) {
-    return this.designationService.create(createDesignationDto);
+  create(@Body() createDesignationDto: CreateDesignationDto,@currentUser() user:any) {
+    return this.designationService.create({...createDesignationDto,organizationId:user.organization});
   }
 
+   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get()
-  findAll() {
-    return this.designationService.findAll();
+  findAll(@currentUser() user:any) {
+    return this.designationService.findAll(user.organization);
   }
 
   @Get(':id')

@@ -24,4 +24,6 @@ export class CreateOfficeDto {
 
     @ApiProperty()
     extension: string;
+
+     organizationId: number;
 }
