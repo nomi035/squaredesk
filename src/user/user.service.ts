@@ -20,17 +20,16 @@ async  create(createUserDto: CreateUserDto) {
   }
 
    async findAllByOrganization(role:Role,organizationId:number) {
-   return await this.usersRepository.findAndCount({
+   return await this.usersRepository.find({
     where: {
       role,
       organization:{
         id:organizationId
       }
     },
-    relations:{
-      organization:true
-    }
-
+    relations: 
+      ['office','department','designation']
+    
    });
   }
   async  findAllByOffice(role:Role,officeId:number) {

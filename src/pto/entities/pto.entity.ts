@@ -1,5 +1,6 @@
+import { BaseEntity } from "base.entity";
 import { User } from "src/user/entities/user.entity";
-import { BaseEntity, Column, JoinColumn, ManyToOne } from "typeorm";
+import {  Column, Entity, JoinColumn, ManyToOne } from "typeorm";
 
 
 export enum PtoStatus {
@@ -7,7 +8,9 @@ export enum PtoStatus {
     APPROVED = 'APPROVED',
     REJECTED = 'REJECTED',
 }
-export class Pto extends BaseEntity {
+
+@Entity('ptos')
+export class Pto extends  BaseEntity{
     @Column({ nullable: true })
     employeeId: number;
 
