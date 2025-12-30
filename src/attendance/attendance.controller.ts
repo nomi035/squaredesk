@@ -126,7 +126,7 @@ export class AttendanceController {
 
       return { status: "Checked Out", attendance: attendance };
     }
-    if (attendance?.checkoutDate !== null && attendance?.checkinDate === null) {
+    else if (!attendance) {
       return { status: 'Not Checked In' };
     }
   }
