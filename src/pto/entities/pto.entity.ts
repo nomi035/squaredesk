@@ -35,5 +35,8 @@ export class Pto extends  BaseEntity{
     
     @Column({ nullable: true })
     endTime: string;
+
+    @Column({ nullable: true })
+    ptoType: string;
 }
 

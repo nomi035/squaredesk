@@ -10,8 +10,8 @@ export class CreatePtoDto {
     @ApiProperty()
     startDate: Date;
 
-
-
+    @ApiProperty()
+    ptoType: string;
 
     @ApiProperty()
     endDate: Date;
