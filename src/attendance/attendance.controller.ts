@@ -14,7 +14,7 @@ import { ExceptionsHandler } from '@nestjs/core/exceptions/exceptions-handler';
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService,
     private readonly breakService: BreakService
-  ) {}
+  ) { }
 
   @Post()
   create(@Body() createAttendanceDto: CreateAttendanceDto) {
@@ -23,81 +23,71 @@ export class AttendanceController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Post('/checkin')
-  async checkIn(@currentUser()user:any) {
+  @Post(':checkInDate/checkin/:startTime')
+  async checkIn(@currentUser() user: any, @Param('startTime') startTime: string, @Param('checkInDate') checkInDate: Date) {
     const attendance = await this.attendanceService.getTodayAttendance(user.userId);
-    if(attendance){ // if attendance already exists for today, update it
-     throw new BadRequestException('Attendance already checked in for today');
+    if (attendance) { // if attendance already exists for today, update it
+      throw new BadRequestException('Attendance already checked in for today');
     }
-    const time= new Date().toLocaleTimeString('en-US', {
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hour12: true,
-});
+
 
     return this.attendanceService.create({
-      checkinDate: new Date(),
-      checkinTime: time,
-      employeeId:user.userId
+      checkinDate: checkInDate,
+      checkinTime: startTime,
+      employeeId: user.userId
 
 
-    
+
     })
 
-      }
- @Post(':attendanceId/break/start/:startTime')
-async addBreak(
-  @Param('attendanceId', ParseIntPipe) attendanceId: number,
-  @Param('startTime') startTime: string,
-
-) {
-  const attendance = await this.attendanceService.findOne(attendanceId);
-  return this.breakService.create({
-    startTime: startTime,
-    inProgress:true
-
-  }, attendance)
-}
-
-@Patch(':attendanceId/break/end/:endTime')
-async endBreak(
-  @Param('attendanceId', ParseIntPipe) attendanceId: number,
-  @Param('endTime') endTime: string,
-
-) {
-  const activeBreak = await this.breakService.findActiveBreaks(attendanceId);
-   if (!activeBreak) {
-    throw new BadRequestException('No active break found for this attendance');
   }
-  const durationMinutes = this.getDiffInMinutes12H(
-  activeBreak.startTime,
-  endTime,
-);
+  @Post(':attendanceId/break/start/:startTime')
+  async addBreak(
+    @Param('attendanceId', ParseIntPipe) attendanceId: number,
+    @Param('startTime') startTime: string,
 
- 
+  ) {
+    const attendance = await this.attendanceService.findOne(attendanceId);
+    return this.breakService.create({
+      startTime: startTime,
+      inProgress: true
 
-  return this.breakService.update(activeBreak.id, { endTime,inProgress:false,duration:(await durationMinutes).toString() });
-}
-  
+    }, attendance)
+  }
+
+  @Patch(':attendanceId/break/end/:endTime')
+  async endBreak(
+    @Param('attendanceId', ParseIntPipe) attendanceId: number,
+    @Param('endTime') endTime: string,
+
+  ) {
+    const activeBreak = await this.breakService.findActiveBreaks(attendanceId);
+    if (!activeBreak) {
+      throw new BadRequestException('No active break found for this attendance');
+    }
+    const durationMinutes = this.getDiffInMinutes12H(
+      activeBreak.startTime,
+      endTime,
+    );
+
+
+
+    return this.breakService.update(activeBreak.id, { endTime, inProgress: false, duration: (await durationMinutes).toString() });
+  }
+
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Patch('/checkout')
-  async checkOut(@currentUser() user: any) {
-   const attendance = await this.attendanceService.getTodayAttendance(user.userId);
-   if(!attendance){
-    throw new BadRequestException('no check-in record found for today');
-   }
-   attendance.checkoutDate = new Date();
-   attendance.checkoutTime = new Date().toLocaleTimeString('en-US', {
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hour12: true,
-});
-  const updatedAttendance = await this.attendanceService.update(attendance.id, attendance);
-  return updatedAttendance;
-   }
+  @Patch(':checkOutDate/checkout/:endTime')
+  async checkOut(@currentUser() user: any, @Param('endTime') endTime: string, @Param('checkOutDate') checkOutDate: Date) {
+    const attendance = await this.attendanceService.getTodayAttendance(user.userId);
+    if (!attendance) {
+      throw new BadRequestException('no check-in record found for today');
+    }
+    attendance.checkoutDate = checkOutDate
+    attendance.checkoutTime = endTime
+    const updatedAttendance = await this.attendanceService.update(attendance.id, attendance);
+    return updatedAttendance;
+  }
 
   @Get()
   findAll() {
@@ -127,43 +117,43 @@ async endBreak(
   @UseGuards(JwtAuthGuard)
   @Get('/status/today')
   async getTodayAttendanceStatus(@currentUser() user: any) {
-    const attendance=await this.attendanceService.getTodayAttendance(user.userId);
-    if(attendance && attendance.checkoutDate===null){
-      return{ status: 'Checked In', attendance: attendance };
+    const attendance = await this.attendanceService.getTodayAttendance(user.userId);
+    if (attendance && attendance.checkoutDate === null) {
+      return { status: 'Checked In', attendance: attendance };
 
     }
-    if(attendance.checkoutDate!==null){
-    return { status: 'Not Checked In' };
-  }
-}
-
-async time12ToMinutes(time: string): Promise<number> {
-  const [hh, mm, period] = time.split(':');
-
-  let hours = parseInt(hh, 10);
-  const minutes = parseInt(mm, 10);
-
-  if (period === 'PM' && hours !== 12) {
-    hours += 12;
-  }
-  if (period === 'AM' && hours === 12) {
-    hours = 0;
+    if (attendance.checkoutDate !== null) {
+      return { status: 'Not Checked In' };
+    }
   }
 
-  return hours * 60 + minutes;
-}
+  async time12ToMinutes(time: string): Promise<number> {
+    const [hh, mm, period] = time.split(':');
 
-async getDiffInMinutes12H(start: string, end: string): Promise<number> {
-  const startMin = await this.time12ToMinutes(start);
-  const endMin = await this.time12ToMinutes(end);
+    let hours = parseInt(hh, 10);
+    const minutes = parseInt(mm, 10);
 
-  let diff = endMin - startMin;
+    if (period === 'PM' && hours !== 12) {
+      hours += 12;
+    }
+    if (period === 'AM' && hours === 12) {
+      hours = 0;
+    }
 
-  // handle crossing midnight
-  if (diff < 0) diff += 24 * 60;
+    return hours * 60 + minutes;
+  }
 
-  return diff;
-}
+  async getDiffInMinutes12H(start: string, end: string): Promise<number> {
+    const startMin = await this.time12ToMinutes(start);
+    const endMin = await this.time12ToMinutes(end);
+
+    let diff = endMin - startMin;
+
+    // handle crossing midnight
+    if (diff < 0) diff += 24 * 60;
+
+    return diff;
+  }
 
 
 }
