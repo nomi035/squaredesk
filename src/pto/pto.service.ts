@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreatePtoDto } from './dto/create-pto.dto';
 import { UpdatePtoDto } from './dto/update-pto.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Pto } from './entities/pto.entity';
+import { Pto, PtoStatus } from './entities/pto.entity';
 import { Repository } from 'typeorm';
 
 @Injectable()
@@ -15,8 +15,24 @@ export class PtoService {
     return this.ptoRepository.save(createPtoDto);
   }
 
-  findAll() {
-    return this.ptoRepository.find();
+  findAll(status?: PtoStatus) {
+    return this.ptoRepository.find({
+      where:{
+        status
+      }
+    });
+  }
+
+  findByEmployeeId(employeeId: number) {
+    return this.ptoRepository.find({ where: { employeeId } });
+  }
+
+  findByBranchId(branchId: number) {
+    return this.ptoRepository.find({ where:{
+      employee:{
+        officeId: branchId
+      }
+    } });
   }
 
   findOne(id: number) {

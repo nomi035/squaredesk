@@ -79,7 +79,7 @@ export class AttendanceController {
   @UseGuards(JwtAuthGuard)
   @Patch(':checkOutDate/checkout/:endTime')
   async checkOut(@currentUser() user: any, @Param('endTime') endTime: string, @Param('checkOutDate') checkOutDate: Date) {
-    const attendance = await this.attendanceService.getTodayAttendance(user.userId);
+    const attendance = await this.attendanceService.getTodayAttendanceWithoutBreaks(user.userId);
     if (!attendance) {
       throw new BadRequestException('no check-in record found for today');
     }

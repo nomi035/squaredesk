@@ -15,5 +15,9 @@ export class CreateShiftDto {
     officeId: number;
     @ApiProperty()
     assignmentId: number;
+    @ApiProperty({
+    required: false
+    })
+    providerName?: string;
 
 }
