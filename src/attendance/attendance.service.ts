@@ -49,6 +49,7 @@ export class AttendanceService {
         createdAt: Between(startOfDay, endOfDay),
         employeeId: employeeId,
       },
+      relations: ['breaks'],
     });
   }
 }
