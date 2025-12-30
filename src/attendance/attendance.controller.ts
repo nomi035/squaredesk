@@ -118,15 +118,15 @@ export class AttendanceController {
   @Get('/status/today')
   async getTodayAttendanceStatus(@currentUser() user: any) {
     const attendance = await this.attendanceService.getTodayAttendance(user.userId);
-    if (attendance.checkinDate && attendance?.checkoutDate === null) {
+    if (attendance?.checkinDate && attendance?.checkoutDate === null) {
       return { status: 'Checked In', attendance: attendance };
 
     }
-    else if (attendance.checkinDate && attendance?.checkoutDate ) {
+    else if (attendance?.checkinDate && attendance?.checkoutDate ) {
 
       return { status: "Checked Out", attendance: attendance };
     }
-    if (attendance?.checkoutDate !== null) {
+    if (attendance?.checkoutDate !== null && attendance?.checkinDate === null) {
       return { status: 'Not Checked In' };
     }
   }
