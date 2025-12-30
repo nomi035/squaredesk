@@ -24,6 +24,12 @@ export class BreakService {
     return this.breakRepository.findOne({ where: { id } });
   }
 
+  findActiveBreaks(attendanceId:number){
+  return this.breakRepository.findOne({ where: { attendance:{
+    id: attendanceId
+  },inProgress: true } });
+}
+
   update(id: number, updateBreakDto: UpdateBreakDto) {
     return this.breakRepository.update(id, updateBreakDto);
   }

@@ -5,10 +5,12 @@ export class CreateBreakDto {
     startTime: string;
 
     @ApiProperty()
-    endTime: string;
+    endTime?: string;
 
     @ApiProperty()
-    duration: string
-    
+    duration?: string
+
+    inProgress?: boolean;
+
 
 }

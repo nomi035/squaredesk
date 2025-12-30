@@ -7,13 +7,18 @@ export class Break extends BaseEntity {
     @Column()
     startTime: string;
 
-    @Column()
+    @Column({
+        nullable: true
+    })
     endTime: string;
     
     @Column({
         nullable: true
     })
     duration:string
+
+    @Column({ nullable: true,default:false })
+    inProgress:boolean
 
    
 
