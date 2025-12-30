@@ -34,6 +34,13 @@ export class PtoService {
       }
     } });
   }
+  findByOrganizationId(organizationId: number) {
+    return this.ptoRepository.find({ where:{
+      employee:{
+        organizationId: organizationId
+      }
+    } });
+  }
 
   findOne(id: number) {
     return this.ptoRepository.findOne({ where: { id } });

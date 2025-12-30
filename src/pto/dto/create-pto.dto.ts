@@ -24,4 +24,8 @@ export class CreatePtoDto {
 
     @ApiProperty()
     endTime: string;
+
+    @ApiProperty()
+    numberOfDays: number;
+    
 }

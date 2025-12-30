@@ -33,6 +33,13 @@ export class PtoController {
     return this.ptoService.findByBranchId(user.office);
   }
 
+   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get('organization/based')
+  findByOrganizationId(@currentUser()user:any) {
+    return this.ptoService.findByOrganizationId(user.organization);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.ptoService.findOne(+id);

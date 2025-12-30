@@ -38,5 +38,8 @@ export class Pto extends  BaseEntity{
 
     @Column({ nullable: true })
     ptoType: string;
+
+    @Column({ nullable: true })
+    numberOfDays: number;
 }
 
