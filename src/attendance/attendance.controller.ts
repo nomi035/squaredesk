@@ -69,7 +69,8 @@ async addBreak(
   second: '2-digit',
   hour12: true,
 });
-
+  const updatedAttendance = await this.attendanceService.update(attendance.id, attendance);
+  return updatedAttendance;
    }
 
   @Get()
