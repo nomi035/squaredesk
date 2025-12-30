@@ -31,15 +31,24 @@ export class PtoService {
     return this.ptoRepository.find({ where:{
       employee:{
         officeId: branchId
-      }
-    } });
+      },
+    },
+  select:{
+    employee:{
+      firstName:true
+  }},
+  relations:['employee']  });
   }
   findByOrganizationId(organizationId: number) {
     return this.ptoRepository.find({ where:{
       employee:{
         organizationId: organizationId
       }
-    } });
+    },
+  select:{
+    employee:{
+      firstName:true  }},
+    relations:['employee']  });
   }
 
   findOne(id: number) {

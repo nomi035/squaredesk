@@ -17,7 +17,9 @@ export class AttendanceService {
   }
 
   findAll() {
-    return this.attendanceRepository.find();
+    return this.attendanceRepository.find({
+      relations: ['breaks','employee'],
+    });
   }
 
   findOne(id: number) {
