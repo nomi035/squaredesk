@@ -127,7 +127,7 @@ getAttendanceRange(
 }
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Get('/admin/all')
+  @Get('/manager/all')
 getAttendanceRangeOffice(
   @Query('startDate') startDate: Date,
   @Query('endDate') endDate: Date,
