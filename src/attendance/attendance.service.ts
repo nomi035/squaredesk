@@ -97,8 +97,7 @@ export class AttendanceService {
   endDate: Date,
   id:number
 ) {
-  startDate.setHours(0, 0, 0, 0);
-  endDate.setHours(23, 59, 59, 999);
+ 
   const attendances = await this.attendanceRepository
     .createQueryBuilder('attendance')
     .leftJoinAndSelect('attendance.employee', 'employee')
