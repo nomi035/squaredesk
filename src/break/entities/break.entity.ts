@@ -22,7 +22,9 @@ export class Break extends BaseEntity {
 
    
 
-    @ManyToOne(() => Attendance, attendance => attendance.breaks,)
+    @ManyToOne(() => Attendance, attendance => attendance.breaks,{
+        onDelete: 'CASCADE'
+    })
     @JoinColumn({ name: 'attendanceId' })
     attendance: Attendance;
 }
