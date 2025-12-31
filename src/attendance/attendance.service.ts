@@ -171,15 +171,17 @@ async updateAttendance(
     if (dto.breaks?.length) {
       for (const breakDto of dto.breaks) {
         if (!breakDto.id) {
-          const duration=await this.calculateDuration(
+          const durationCalculated=await this.calculateDuration(
               breakDto.startTime,
               breakDto.endTime,
             ).toString()
+
+            console.log("new durationCalculated",durationCalculated)
           // ➕ CREATE new break
           const newBreak = manager.create(Break, {
             startTime: breakDto.startTime,
             endTime: breakDto.endTime,
-            duration: duration,
+            duration: durationCalculated,
             attendance,
           });
 
@@ -199,10 +201,11 @@ async updateAttendance(
             );
           }
 
-           const duration=await this.calculateDuration(
+           const durationCalculated=await this.calculateDuration(
               breakDto.startTime,
               breakDto.endTime,
             ).toString()
+            console.log("existing durationCalculated",durationCalculated)
           existingBreak.startTime =
             breakDto.startTime ?? existingBreak.startTime;
 
@@ -210,7 +213,7 @@ async updateAttendance(
             breakDto.endTime ?? existingBreak.endTime;
 
 
-              existingBreak.duration = duration
+              existingBreak.duration = durationCalculated
 
           await manager.save(existingBreak);
         }
@@ -220,32 +223,30 @@ async updateAttendance(
     return attendance;
   });
 }
-  async time12ToMinutes(time: string): Promise<number> {
-    const [hh, mm, period] = time.split(':');
+ time12toSeconds(time: string): number {
+  // Example: "12:06:43 PM"
+  const [hms, period] = [time.slice(0, 8), time.slice(9)]; 
+  const [hoursStr, minutesStr, secondsStr] = hms.split(':');
 
-    let hours = parseInt(hh, 10);
-    const minutes = parseInt(mm, 10);
+  let hours = parseInt(hoursStr, 10);
+  const minutes = parseInt(minutesStr, 10);
+  const seconds = parseInt(secondsStr, 10);
 
-    if (period === 'PM' && hours !== 12) {
-      hours += 12;
-    }
-    if (period === 'AM' && hours === 12) {
-      hours = 0;
-    }
+  if (period.toUpperCase() === 'PM' && hours < 12) hours += 12;
+  if (period.toUpperCase() === 'AM' && hours === 12) hours = 0;
 
-    return hours * 60 + minutes;
-  }
+  return hours * 3600 + minutes * 60 + seconds; // total seconds
+}
 
-  async calculateDuration(start: string, end: string): Promise<number> {
-    const startMin = await this.time12ToMinutes(start);
-    const endMin = await this.time12ToMinutes(end);
 
-    let diff = endMin - startMin;
+  calculateDuration(start: string, end: string) {
+    const t1 = this.time12toSeconds(start);
+    const t2 = this.time12toSeconds(end);
 
-    // handle crossing midnight
-    if (diff < 0) diff += 24 * 60;
+  let diff = t2 - t1;
+  if (diff < 0) diff += 24 * 3600; // handle next day
 
-    return diff;
+  return diff/60;
   }
 
 
