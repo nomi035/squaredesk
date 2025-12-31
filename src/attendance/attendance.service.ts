@@ -175,7 +175,7 @@ async updateAttendance(
           const newBreak = manager.create(Break, {
             startTime: breakDto.startTime,
             endTime: breakDto.endTime,
-            duration: this.calculateDuration(
+            duration: await this.calculateDuration(
               breakDto.startTime,
               breakDto.endTime,
             ).toString(),
@@ -204,7 +204,7 @@ async updateAttendance(
           existingBreak.endTime =
             breakDto.endTime ?? existingBreak.endTime;
 
-          existingBreak.duration = this.calculateDuration(
+          existingBreak.duration = await this.calculateDuration(
             existingBreak.startTime,
             existingBreak.endTime,
           ).toString();
