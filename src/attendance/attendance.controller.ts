@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseIntPipe, HttpException, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseIntPipe, HttpException, BadRequestException, Query } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto';
@@ -112,6 +112,30 @@ export class AttendanceController {
   findByEmployeeId(@Param('employeeId') employeeId: string) {
     return this.attendanceService.findByEmployeeId(+employeeId);
   }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('/admin/all')
+getAttendanceRange(
+  @Query('startDate') startDate: Date,
+  @Query('endDate') endDate: Date,
+  @currentUser() user: any
+) {
+ 
+
+  return this.attendanceService.getAttendanceByDateRange(startDate, endDate,user.organization);
+}
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('/admin/all')
+getAttendanceRangeOffice(
+  @Query('startDate') startDate: Date,
+  @Query('endDate') endDate: Date,
+  @currentUser() user: any
+) {
+
+  return this.attendanceService.getAttendanceByDateRangeOffice(startDate, endDate,user.office);
+}
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)

@@ -69,4 +69,79 @@ export class AttendanceService {
 
     });
   }
+  async getAttendanceByDateRange(
+  startDate: Date,
+  endDate: Date,
+  id:number
+) {
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(23, 59, 59, 999);
+  const attendances = await this.attendanceRepository
+    .createQueryBuilder('attendance')
+    .leftJoinAndSelect('attendance.employee', 'employee')
+    .leftJoinAndSelect('attendance.breaks', 'breaks')
+    .where('attendance.checkinDate BETWEEN :start AND :end', {
+      start: startDate,
+      end: endDate,
+    })
+    .andWhere('employee.organizationId = :orgId', { orgId: id })
+    .orderBy('attendance.employeeId', 'ASC')
+    .addOrderBy('attendance.checkinDate', 'ASC')
+    .getMany();
+
+
+  return this.groupByEmployee(attendances);
+}
+  async getAttendanceByDateRangeOffice(
+  startDate: Date,
+  endDate: Date,
+  id:number
+) {
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(23, 59, 59, 999);
+  const attendances = await this.attendanceRepository
+    .createQueryBuilder('attendance')
+    .leftJoinAndSelect('attendance.employee', 'employee')
+    .leftJoinAndSelect('attendance.breaks', 'breaks')
+    .where('attendance.checkinDate BETWEEN :start AND :end', {
+      start: startDate,
+      end: endDate,
+    })
+    .andWhere('employee.officeId = :orgId', { orgId: id })
+    .orderBy('attendance.employeeId', 'ASC')
+    .addOrderBy('attendance.checkinDate', 'ASC')
+    .getMany();
+
+
+  return this.groupByEmployee(attendances);
+}
+private groupByEmployee(attendances: Attendance[]) {
+  const map = new Map<number, any>();
+
+  for (const attendance of attendances) {
+    const empId = attendance.employeeId;
+
+    if (!map.has(empId)) {
+      map.set(empId, {
+        employeeId: empId,
+        employeeName: attendance.employee.firstName+' '+attendance.employee.lastName,
+        attendances: [],
+      });
+    }
+
+
+    map.get(empId).attendances.push({
+      id: attendance.id,
+      checkinDate: attendance.checkinDate,
+      checkinTime: attendance.checkinTime,
+      checkoutDate: attendance.checkoutDate,
+      checkoutTime: attendance.checkoutTime,
+      breaks: attendance.breaks,
+    });
+  }
+
+  return Array.from(map.values());
+}
+
+
 }
