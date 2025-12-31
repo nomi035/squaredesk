@@ -144,67 +144,77 @@ private groupByEmployee(attendances: Attendance[]) {
   return Array.from(map.values());
 }
 
-async patchAttendance(
+async updateAttendance(
   attendanceId: number,
-  dto: PatchAttendanceDto,
+  dto: UpdateAttendanceDto,
 ) {
   return this.dataSource.transaction(async (manager) => {
     const attendance = await manager.findOne(Attendance, {
       where: { id: attendanceId },
-      relations: ['breaks'],
     });
 
     if (!attendance) {
       throw new BadRequestException('Attendance not found');
     }
 
-    // 1️⃣ Update attendance scalars
-    const { breaks, ...attendanceData } = dto;
-    Object.assign(attendance, attendanceData);
+    // 1️⃣ Update attendance fields
+    Object.assign(attendance, {
+      checkinDate: dto.checkinDate ?? attendance.checkinDate,
+      checkinTime: dto.checkinTime ?? attendance.checkinTime,
+      checkoutDate: dto.checkoutDate ?? attendance.checkoutDate,
+      checkoutTime: dto.checkoutTime ?? attendance.checkoutTime,
+    });
 
-    // 2️⃣ Handle breaks
-    if (breaks?.length) {
-      for (const breakDto of breaks) {
-        if (breakDto.id) {
-          // UPDATE
-          const existing = attendance.breaks.find(
-            (b) => b.id === breakDto.id,
-          );
+    await manager.save(attendance);
 
-          if (!existing) {
+    // 2️⃣ Update breaks
+    if (dto.breaks?.length) {
+      for (const breakDto of dto.breaks) {
+        if (!breakDto.id) {
+          // ➕ CREATE new break
+          const newBreak = manager.create(Break, {
+            startTime: breakDto.startTime,
+            endTime: breakDto.endTime,
+            duration: this.calculateDuration(
+              breakDto.startTime,
+              breakDto.endTime,
+            ).toString(),
+            attendance,
+          });
+
+          await manager.save(newBreak);
+        } else {
+          // ✏️ UPDATE existing break
+          const existingBreak = await manager.findOne(Break, {
+            where: {
+              id: breakDto.id,
+              attendance: { id: attendanceId },
+            },
+          });
+
+          if (!existingBreak) {
             throw new BadRequestException(
               `Break ${breakDto.id} not found`,
             );
           }
-          const duration= breakDto.duration ??
-            await (this.getDiffInMinutes12H(
-              breakDto.startTime,
-              breakDto.endTime,
-            )).toString();
-          existing.startTime = breakDto.startTime;
-          existing.endTime = breakDto.endTime;
-          existing.duration = duration;
 
-        } else {
-          // CREATE
-           const duration= breakDto.duration ??
-            await (this.getDiffInMinutes12H(
-              breakDto.startTime,
-              breakDto.endTime,
-            )).toString();
-          const newBreak = manager.create(Break, {
-            startTime: breakDto.startTime,
-            endTime: breakDto.endTime,
-            duration: duration,
-            attendance,
-          });
+          existingBreak.startTime =
+            breakDto.startTime ?? existingBreak.startTime;
 
-          attendance.breaks.push(newBreak);
+          existingBreak.endTime =
+            breakDto.endTime ?? existingBreak.endTime;
+
+          existingBreak.duration = this.calculateDuration(
+            existingBreak.startTime,
+            existingBreak.endTime,
+          ).toString();
+
+          await manager.save(existingBreak);
         }
       }
     }
 
-    return manager.save(attendance);
+    return attendance;
   });
 }
   async time12ToMinutes(time: string): Promise<number> {
@@ -223,7 +233,7 @@ async patchAttendance(
     return hours * 60 + minutes;
   }
 
-  async getDiffInMinutes12H(start: string, end: string): Promise<number> {
+  async calculateDuration(start: string, end: string): Promise<number> {
     const startMin = await this.time12ToMinutes(start);
     const endMin = await this.time12ToMinutes(end);
 

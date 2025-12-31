@@ -103,9 +103,9 @@ export class AttendanceController {
  @Patch(':id')
 updateAttendance(
   @Param('id', ParseIntPipe) id: number,
-  @Body() dto: PatchAttendanceDto,
+  @Body() dto: UpdateAttendanceDto,
 ) {
-  return this.attendanceService.patchAttendance(id, dto);
+  return this.attendanceService.updateAttendance(id, dto);
 }
 
   @Delete(':id')
@@ -186,7 +186,7 @@ getAttendanceRangeOffice(
 
     return diff;
   }
-  
+
 
 
 }
