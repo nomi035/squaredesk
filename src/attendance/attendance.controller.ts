@@ -8,6 +8,7 @@ import { CreateBreakDto } from 'src/break/dto/create-break.dto';
 import { JwtAuthGuard } from 'src/auth/guard';
 import { currentUser } from 'src/decorators/currentuser';
 import { ExceptionsHandler } from '@nestjs/core/exceptions/exceptions-handler';
+import { PatchAttendanceDto } from './dto/patch-attendance.dto';
 
 @ApiTags('attendance')
 @Controller('attendance')
@@ -99,10 +100,13 @@ export class AttendanceController {
     return this.attendanceService.findOne(+id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAttendanceDto: UpdateAttendanceDto) {
-    return this.attendanceService.update(+id, updateAttendanceDto);
-  }
+ @Patch(':id')
+updateAttendance(
+  @Param('id', ParseIntPipe) id: number,
+  @Body() dto: PatchAttendanceDto,
+) {
+  return this.attendanceService.patchAttendance(id, dto);
+}
 
   @Delete(':id')
   remove(@Param('id') id: string) {
@@ -182,6 +186,7 @@ getAttendanceRangeOffice(
 
     return diff;
   }
+  
 
 
 }
