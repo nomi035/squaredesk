@@ -57,6 +57,41 @@ export class AttendanceService {
       relations: ['breaks'],
     });
   }
+
+  async getTodayAttendanceAllOffice(id:number) {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return this.attendanceRepository.findOne({
+      where: {
+        createdAt: Between(startOfDay, endOfDay),
+        employee:{
+          officeId: id
+        }
+      },
+      relations: ['breaks'],
+    });
+  }
+    async getTodayAttendanceAllOrganization(id:number) {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return this.attendanceRepository.findOne({
+      where: {
+        createdAt: Between(startOfDay, endOfDay),
+        employee:{
+          organizationId: id
+        }
+      },
+      relations: ['breaks'],
+    });
+  }
    async getTodayAttendanceWithoutBreaks(employeeId: number) {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);

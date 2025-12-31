@@ -17,6 +17,8 @@ export class CreateAttendanceDto {
         @ApiProperty()
         employeeId: number;
 
+        duration?:number;
+
 
         @ApiProperty({ type: [CreateBreakDto], required: false })
          breaks?: CreateBreakDto[];

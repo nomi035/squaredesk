@@ -18,8 +18,9 @@ export class AttendanceController {
   ) { }
 
   @Post()
-  create(@Body() createAttendanceDto: CreateAttendanceDto) {
-    return this.attendanceService.create(createAttendanceDto);
+  async create(@Body() createAttendanceDto: CreateAttendanceDto) {
+    const duration=this.attendanceService.calculateDuration(createAttendanceDto.checkinTime,createAttendanceDto.checkoutTime);
+    return this.attendanceService.create({...createAttendanceDto,duration});
   }
 
   @ApiBearerAuth()
@@ -86,6 +87,8 @@ export class AttendanceController {
     }
     attendance.checkoutDate = checkOutDate
     attendance.checkoutTime = endTime
+    const duration = this.attendanceService.calculateDuration(attendance.checkinTime, endTime);
+    attendance.duration = duration;
     const updatedAttendance = await this.attendanceService.update(attendance.id, attendance);
     return updatedAttendance;
   }
@@ -158,6 +161,23 @@ getAttendanceRangeOffice(
       return { status: 'Not Checked In' };
     }
   }
+
+  @ApiBearerAuth()  
+  @UseGuards(JwtAuthGuard)
+  @Get('/all/office/today')
+  async getTodayAttendanceStatusOffice(@currentUser() user: any) {
+    return this.attendanceService.getTodayAttendanceAllOffice(user.office);
+  }
+  @ApiBearerAuth()  
+  @UseGuards(JwtAuthGuard)
+  @Get('/all/organization/today')
+  async getTodayAttendanceStatusOrganization(@currentUser() user: any) {
+    return this.attendanceService.getTodayAttendanceAllOrganization(user.organization);
+  }
+
+
+
+
 
   async time12ToMinutes(time: string): Promise<number> {
     const [hh, mm, period] = time.split(':');
