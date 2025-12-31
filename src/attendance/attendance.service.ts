@@ -171,14 +171,15 @@ async updateAttendance(
     if (dto.breaks?.length) {
       for (const breakDto of dto.breaks) {
         if (!breakDto.id) {
+          const duration=await this.calculateDuration(
+              breakDto.startTime,
+              breakDto.endTime,
+            ).toString()
           // ➕ CREATE new break
           const newBreak = manager.create(Break, {
             startTime: breakDto.startTime,
             endTime: breakDto.endTime,
-            duration: await this.calculateDuration(
-              breakDto.startTime,
-              breakDto.endTime,
-            ).toString(),
+            duration: duration,
             attendance,
           });
 
@@ -198,16 +199,18 @@ async updateAttendance(
             );
           }
 
+           const duration=await this.calculateDuration(
+              breakDto.startTime,
+              breakDto.endTime,
+            ).toString()
           existingBreak.startTime =
             breakDto.startTime ?? existingBreak.startTime;
 
           existingBreak.endTime =
             breakDto.endTime ?? existingBreak.endTime;
 
-          existingBreak.duration = await this.calculateDuration(
-            existingBreak.startTime,
-            existingBreak.endTime,
-          ).toString();
+
+              existingBreak.duration = duration
 
           await manager.save(existingBreak);
         }
