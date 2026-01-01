@@ -20,8 +20,18 @@ export class Attendance extends BaseEntity {
     @Column()
     employeeId: number;
 
-    @Column({ nullable: true })
-    duration:number
+    @Column({
+        type: 'numeric',
+        precision: 10,
+        scale: 2,
+        nullable: true,
+        transformer: {
+            to: (value: number) => value,
+            from: (value: string) => Number(value),
+        },
+    })
+   
+    duration: number
 
     @ManyToOne(() => User, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'employeeId' })
