@@ -28,7 +28,10 @@ export class Shift extends BaseEntity {
      @ManyToOne(() => Assignment, {onDelete:'CASCADE'})
     @JoinColumn({name:'assignmentId'})
     assignment: Assignment;
-    @Column({ nullable: true })
-    providerName: string;
+   @Column({ nullable: true })
+   providerId:number
+    @ManyToOne(() => User, {onDelete:'CASCADE'})
+    @JoinColumn({name:'providerId'})
+    provider: User;
 
 }

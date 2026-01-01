@@ -4,6 +4,7 @@ import { UpdateShiftDto } from './dto/update-shift.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Shift } from './entities/shift.entity';
 import { Repository } from 'typeorm/repository/Repository';
+import e from 'express';
 
 @Injectable()
 export class ShiftService {
@@ -14,7 +15,19 @@ export class ShiftService {
   }
 
   findAll() {
-    return this.shiftRepository.find();
+    return this.shiftRepository.find({
+      relations: ['assignment', 'employee', 'provider'],
+      select:{
+        provider:{
+          firstName:true,
+          lastName:true,
+        },
+        employee:{
+          firstName:true,
+          lastName:true,
+        }
+      }
+    });
   }
 
   findOne(id: number) {
@@ -31,6 +44,17 @@ export class ShiftService {
     return this.shiftRepository.delete(id);
   }
   findByEmployee(employeeId: number) {
-    return this.shiftRepository.find({ where: { employeeId } });
+    return this.shiftRepository.find({ where: [{ employeeId, providerId: employeeId }],
+     relations: ['assignment', 'employee', 'provider'],
+      select:{
+        provider:{
+          firstName:true,
+          lastName:true,
+        },
+        employee:{
+          firstName:true,
+          lastName:true,
+        }
+      } });
   }
 }
