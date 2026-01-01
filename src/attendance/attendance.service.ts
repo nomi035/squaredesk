@@ -30,7 +30,7 @@ export class AttendanceService {
   }
 
   async update(id: number, updateAttendanceDto: UpdateAttendanceDto) {
-    
+    await this.attendanceRepository.update(id, updateAttendanceDto)
   }
 
   remove(id: number) {
