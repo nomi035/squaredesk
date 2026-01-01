@@ -44,7 +44,7 @@ export class ShiftService {
     return this.shiftRepository.delete(id);
   }
   findByEmployee(employeeId: number) {
-    return this.shiftRepository.find({ where: [{ employeeId, providerId: employeeId }],
+    return this.shiftRepository.find({ where: [{ employeeId:employeeId},{ providerId: employeeId }],
      relations: ['assignment', 'employee', 'provider'],
       select:{
         provider:{
