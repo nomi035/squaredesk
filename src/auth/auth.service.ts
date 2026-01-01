@@ -11,6 +11,9 @@ export class AuthService {
   ) {}
   async login(createAuthDto: CreateAuthDto) {
     const user = await this.usersService.findByEmail(createAuthDto.email);
+    if(user.isActive===false){
+      throw new UnauthorizedException('User is deactivated');
+    }
     if (user && user.password === createAuthDto.password) {
       return await this.assignToken(user);
     }

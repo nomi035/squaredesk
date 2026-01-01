@@ -7,6 +7,21 @@ import { Repository } from 'typeorm/repository/Repository';
 import { Between, DataSource } from 'typeorm';
 import { PatchAttendanceDto } from './dto/patch-attendance.dto';
 import { Break } from 'src/break/entities/break.entity';
+function startOfWeek(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 (Sun) - 6 (Sat)
+  const diff = d.getDate() - (day === 0 ? 6 : day - 1); // Monday
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function startOfMonth(date: Date): Date {
+  const d = new Date(date);
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 
 @Injectable()
 export class AttendanceService {
@@ -284,5 +299,58 @@ async updateAttendance(
   return diff/60;
   }
 
+async getWeekAndMonthDuration(employeeId: number) {
+  const weekStart = `date_trunc('week', NOW())`;
+  const monthStart = `date_trunc('month', NOW())`;
+
+  const attendances = await this.attendanceRepository
+    .createQueryBuilder('a')
+    .select([
+      'a.id',
+      'a.checkinDate',
+      'a.duration',
+    ])
+    .where('a.employeeId = :employeeId', { employeeId })
+   
+    .andWhere(
+      `(a.checkinDate >= ${weekStart} OR a.checkinDate >= ${monthStart})`,
+    )
+    .getMany();
+console.log("attendances",attendances)
+  // Now calculate manually
+  const now = new Date();
+  const weekStartJs = startOfWeek(now);
+  const monthStartJs = startOfMonth(now);
+
+  let weekTotal = 0;
+  let monthTotal = 0;
+
+  for (const attendance of attendances) {
+    const checkin = new Date(attendance.checkinDate);
+
+    if (checkin >= weekStartJs) {
+      weekTotal += attendance.duration;
+    }
+
+    if (checkin >= monthStartJs) {
+      monthTotal += attendance.duration;
+    }
+  }
+console.log("weekTotal",weekTotal)
+console.log("monthTotal",monthTotal)
+  return {
+    currentWeek: Number(weekTotal.toFixed(2)),
+    currentMonth: Number(monthTotal.toFixed(2)),
+  };
+}
+
+
+
+
+
 
 }
+
+
+
+

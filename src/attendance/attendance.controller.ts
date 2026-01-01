@@ -175,10 +175,13 @@ getAttendanceRangeOffice(
     return this.attendanceService.getTodayAttendanceAllOrganization(user.organization);
   }
 
-
-
-
-
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('/stats/hours')
+  async getStatsHours(@currentUser() user: any) {
+    return this.attendanceService.getWeekAndMonthDuration(user.userId);
+  }
+  
   async time12ToMinutes(time: string): Promise<number> {
     const [hh, mm, period] = time.split(':');
 
