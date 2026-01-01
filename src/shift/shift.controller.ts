@@ -33,4 +33,8 @@ export class ShiftController {
   remove(@Param('id') id: string) {
     return this.shiftService.remove(+id);
   }
+  @Get('by/employee/:employeeId')
+  findByEmployee(@Param('employeeId') employeeId: string) {
+    return this.shiftService.findByEmployee(+employeeId);
+  }
 }

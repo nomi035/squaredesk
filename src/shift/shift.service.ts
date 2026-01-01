@@ -30,4 +30,7 @@ export class ShiftService {
   remove(id: number) {
     return this.shiftRepository.delete(id);
   }
+  findByEmployee(employeeId: number) {
+    return this.shiftRepository.find({ where: { employeeId } });
+  }
 }
