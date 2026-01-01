@@ -181,7 +181,21 @@ getAttendanceRangeOffice(
   async getStatsHours(@currentUser() user: any) {
     return this.attendanceService.getWeekAndMonthDuration(user.userId);
   }
-  
+
+    @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('/graph/manager')
+  async getStatsgraph(@currentUser() user: any) {
+    return this.attendanceService.getManagerMonthHours(user.office);
+  }
+
+    @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('/graph/admin')
+  async getStatsgraphadmin(@currentUser() user: any) {
+    return this.attendanceService.getAdminMonthHours(user.organization);
+  }
+
   async time12ToMinutes(time: string): Promise<number> {
     const [hh, mm, period] = time.split(':');
 
@@ -210,6 +224,7 @@ getAttendanceRangeOffice(
     return diff;
   }
 
+  
 
 
 }

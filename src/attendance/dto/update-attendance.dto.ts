@@ -4,6 +4,7 @@ import {
   IsArray,
   IsDateString,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   ValidateNested,
@@ -30,6 +31,12 @@ export class UpdateAttendanceDto {
   @IsOptional()
   @IsString()
   checkoutTime?: string;
+
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  duration?: number;
 
  
 

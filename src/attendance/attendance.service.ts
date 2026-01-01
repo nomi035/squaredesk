@@ -213,6 +213,7 @@ async updateAttendance(
       checkinTime: dto.checkinTime ?? attendance.checkinTime,
       checkoutDate: dto.checkoutDate ?? attendance.checkoutDate,
       checkoutTime: dto.checkoutTime ?? attendance.checkoutTime,
+      duration: dto.duration ?? attendance.duration,
     });
 
     await manager.save(attendance);
@@ -344,12 +345,86 @@ console.log("monthTotal",monthTotal)
   };
 }
 
+async getManagerMonthHours(officeId:number){
+  const now = new Date();
+  const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  startDate.setHours(0, 0, 0, 0);
 
+  // Month names
+  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
+  // Fetch attendances for employees in this office
+  const attendances = await this.attendanceRepository
+    .createQueryBuilder('a')
+    .innerJoin('a.employee', 'e')
+    .select(['a.checkinDate', 'a.duration'])
+    .where('a.duration > 0')
+    .andWhere('e.officeId = :officeId', { officeId })
+    .andWhere('a.checkinDate >= :startDate', { startDate })
+    .getMany();
 
+  // Initialize result object with 12 months
+  const result: Record<string, number> = {};
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthKey = monthNames[d.getMonth()];
+    result[monthKey] = 0;
+  }
 
+  // Aggregate durations
+  for (const att of attendances) {
+    const d = new Date(att.checkinDate);
+    const monthKey = monthNames[d.getMonth()];
+    if (result[monthKey] !== undefined) {
+      result[monthKey] += att.duration;
+    }
+  }
 
+  return result;
 }
+
+async getAdminMonthHours(officeId:number){
+  const now = new Date();
+  const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  startDate.setHours(0, 0, 0, 0);
+
+  // Month names
+  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  // Fetch attendances for employees in this office
+  const attendances = await this.attendanceRepository
+    .createQueryBuilder('a')
+    .innerJoin('a.employee', 'e')
+    .select(['a.checkinDate', 'a.duration'])
+    .where('a.duration > 0')
+    .andWhere('e.organizationId = :officeId', { officeId })
+    .andWhere('a.checkinDate >= :startDate', { startDate })
+    .getMany();
+
+  // Initialize result object with 12 months
+  const result: Record<string, number> = {};
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthKey = monthNames[d.getMonth()];
+    result[monthKey] = 0;
+  }
+
+  // Aggregate durations
+  for (const att of attendances) {
+    const d = new Date(att.checkinDate);
+    const monthKey = monthNames[d.getMonth()];
+    if (result[monthKey] !== undefined) {
+      result[monthKey] += att.duration;
+    }
+  }
+
+  return result;
+}
+}
+
+
+
+
 
 
 

@@ -39,7 +39,7 @@ export class User extends BaseEntity {
   emergencyRelation:string
   @Column({nullable:true})
   role: Role;
-  @Column({  })
+  @Column({  nullable: true })
   officeId:number
   @Column({  })
   departmentId:number
