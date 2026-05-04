@@ -24,7 +24,7 @@ import { BreakModule } from './break/break.module';
     port: Number(process.env.DB_PORT),
   
     autoLoadEntities: true,
-    synchronize: true,
+    //synchronize: true,
   
     //  ssl: {
     //  rejectUnauthorized: false,
