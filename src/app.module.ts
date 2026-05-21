@@ -14,6 +14,8 @@ import { AssignmentsModule } from './assignments/assignments.module';
 import { PtoModule } from './pto/pto.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { BreakModule } from './break/break.module';
+import { OutreachModule } from './outreach/outreach.module';
+import { TasksModule } from './tasks/tasks.module';
 
 @Module({
   imports: [UserModule,
@@ -24,7 +26,7 @@ import { BreakModule } from './break/break.module';
     port: Number(process.env.DB_PORT),
   
     autoLoadEntities: true,
-    //synchronize: true,
+    synchronize: true,
   
     //  ssl: {
     //  rejectUnauthorized: false,
@@ -39,7 +41,9 @@ import { BreakModule } from './break/break.module';
      AssignmentsModule,
      PtoModule,
      OrganizationsModule,
-     BreakModule,],
+     BreakModule,
+     OutreachModule,
+     TasksModule,],
   controllers: [AppController],
   providers: [AppService],
 })
