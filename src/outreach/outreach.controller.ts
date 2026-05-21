@@ -14,6 +14,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guard';
+import { currentUser } from 'src/decorators/currentuser';
 import { UpdateOutreachDto } from './dto/update-outreach.dto';
 import { OutreachService } from './outreach.service';
 
@@ -26,8 +27,11 @@ export class OutreachController {
   @ApiBearerAuth()
   @Post('import')
   @ApiQuery({ name: 'file', required: false, description: 'CSV filename in project root (default: Psychiatry.csv)' })
-  importFromFile(@Query('file') file?: string) {
-    return this.outreachService.importFromFile(file ?? 'Psychiatry.csv');
+  importFromFile(
+    @Query('file') file: string | undefined,
+    @currentUser() user: { organization: number },
+  ) {
+    return this.outreachService.importFromFile(file ?? 'Psychiatry.csv', user.organization);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -41,15 +45,25 @@ export class OutreachController {
     },
   })
   @UseInterceptors(FileInterceptor('file'))
-  importUpload(@UploadedFile() file: Express.Multer.File) {
-    return this.outreachService.importFromContent(file.buffer.toString('utf-8'));
+  importUpload(
+    @UploadedFile() file: Express.Multer.File,
+    @currentUser() user: { organization: number },
+  ) {
+    return this.outreachService.importFromContent(file.buffer.toString('utf-8'), user.organization);
   }
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Get()
-  findAll() {
-    return this.outreachService.findAll();
+  findAll(@currentUser() user: { organization: number }) {
+    return this.outreachService.findAll(user.organization);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Delete('organization')
+  removeAllByOrganization(@currentUser() user: { organization: number }) {
+    return this.outreachService.removeAllByOrganization(user.organization);
   }
 
   @UseGuards(JwtAuthGuard)

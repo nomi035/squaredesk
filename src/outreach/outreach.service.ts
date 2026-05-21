@@ -74,18 +74,21 @@ export class OutreachService {
       .map((row) => this.mapCsvRow(row));
   }
 
-  async importFromFile(filename = 'Psychiatry.csv') {
+  async importFromFile(filename = 'Psychiatry.csv', organizationId?: number) {
     const filePath = path.join(process.cwd(), filename);
     if (!fs.existsSync(filePath)) {
       throw new NotFoundException(`CSV file not found: ${filename}`);
     }
 
     const content = fs.readFileSync(filePath, 'utf-8');
-    return this.importFromContent(content);
+    return this.importFromContent(content, organizationId);
   }
 
-  async importFromContent(content: string) {
-    const records = this.parseCsvContent(content);
+  async importFromContent(content: string, organizationId?: number) {
+    const records = this.parseCsvContent(content).map((record) => ({
+      ...record,
+      organizationId,
+    }));
     const saved = await this.outreachRepository.save(records);
     return {
       inserted: saved.length,
@@ -93,8 +96,16 @@ export class OutreachService {
     };
   }
 
-  findAll() {
-    return this.outreachRepository.find({ order: { id: 'ASC' } });
+  findAll(organizationId: number) {
+    return this.outreachRepository.find({
+      where: { organizationId },
+      order: { id: 'ASC' },
+    });
+  }
+
+  async removeAllByOrganization(organizationId: number) {
+    const result = await this.outreachRepository.delete({ organizationId });
+    return { deleted: result.affected ?? 0 };
   }
 
   findOne(id: number) {

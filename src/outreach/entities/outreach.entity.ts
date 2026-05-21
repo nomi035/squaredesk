@@ -47,4 +47,7 @@ export class Outreach extends BaseEntity {
 
   @Column({ default: 'pending' })
   status: string;
+
+  @Column({ nullable: true })
+  organizationId: number;
 }
