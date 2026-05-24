@@ -16,6 +16,8 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { BreakModule } from './break/break.module';
 import { OutreachModule } from './outreach/outreach.module';
 import { TasksModule } from './tasks/tasks.module';
+import { PermissionModule } from './permission/permission.module';
+import { PayrollModule } from './payroll/payroll.module';
 
 @Module({
   imports: [UserModule,
@@ -43,7 +45,9 @@ import { TasksModule } from './tasks/tasks.module';
      OrganizationsModule,
      BreakModule,
      OutreachModule,
-     TasksModule,],
+     TasksModule,
+     PermissionModule,
+     PayrollModule,],
   controllers: [AppController],
   providers: [AppService],
 })

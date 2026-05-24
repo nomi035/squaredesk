@@ -59,6 +59,8 @@ export class User extends BaseEntity {
   @ManyToOne(() => Organization,{onDelete:'CASCADE'})
   @JoinColumn({ name: 'organizationId' })
   organization: Organization;
+  @Column({ nullable: true })
+  salaryAmount: number;
 
 
 }

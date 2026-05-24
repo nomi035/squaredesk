@@ -2,10 +2,11 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, HttpException, UseGu
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
-import { UserSwaggerSchema } from './user.swagger-schema';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guard';
 import { currentUser } from 'src/decorators/currentuser';
+import { PermissionName } from 'src/permission/entities/permission.entity';
+import { PermissionService } from 'src/permission/permission.service';
 import { Role } from './entities/user.entity';
 
 
@@ -13,7 +14,10 @@ import { Role } from './entities/user.entity';
 @ApiTags('user')
 @ApiBearerAuth()
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly permissionService: PermissionService,
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -47,6 +51,18 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   findAllByOrganization(@Query('role') role: Role,@currentUser() user: any) {
    return this.userService.findAllByOrganization(role,user.organization);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get('permission/check')
+  @ApiQuery({ name: 'userId', type: Number, required: true })
+  @ApiQuery({ name: 'permission', enum: PermissionName, required: true })
+  checkPermission(
+    @Query('userId') userId: string,
+    @Query('permission') permission: PermissionName,
+  ) {
+    return this.permissionService.isAllowed(+userId, permission);
   }
 
   @Get(':id')
