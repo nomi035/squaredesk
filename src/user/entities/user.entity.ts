@@ -27,8 +27,8 @@ export class User extends BaseEntity {
   state: string;
   @Column({ nullable: true })
   zip: string;
-  @Column({ nullable: true })
-  employmentType:string
+  // @Column({ nullable: true })
+  // employmentType:string
   @Column({ nullable: true })
   ptoDays:number
   @Column({ nullable: true })
@@ -39,23 +39,23 @@ export class User extends BaseEntity {
   emergencyRelation:string
   @Column({nullable:true})
   role: Role;
-  @Column({  nullable: true })
-  officeId:number
-  @Column({  })
-  departmentId:number
-  @Column({  })
-  designationId:number
+  // @Column({  nullable: true })
+  // officeId:number
+  // @Column({  })
+  // departmentId:number
+  // @Column({  })
+  // designationId:number
   @Column({ nullable: true })
   organizationId: number;
-  @ManyToOne(() => Office,{onDelete:'CASCADE'})
-  @JoinColumn({ name: 'officeId' })
-  office: Office;
-  @ManyToOne(() => Department,{onDelete:'CASCADE'})
-  @JoinColumn({ name: 'departmentId' })
-  department: Department;
-  @ManyToOne(() => Designation,{onDelete:'CASCADE'})
-  @JoinColumn({ name: 'designationId' })
-  designation: Designation;
+  // @ManyToOne(() => Office,{onDelete:'CASCADE'})
+  // @JoinColumn({ name: 'officeId' })
+  // office: Office;
+  // @ManyToOne(() => Department,{onDelete:'CASCADE'})
+  // @JoinColumn({ name: 'departmentId' })
+  // department: Department;
+  // @ManyToOne(() => Designation,{onDelete:'CASCADE'})
+  // @JoinColumn({ name: 'designationId' })
+  // designation: Designation;
   @ManyToOne(() => Organization,{onDelete:'CASCADE'})
   @JoinColumn({ name: 'organizationId' })
   organization: Organization;

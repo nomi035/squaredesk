@@ -23,14 +23,7 @@ export class CreateUserDto {
   state: string;
  @ApiProperty()
   zip: string;
- @ApiProperty()
-  officeId:number
- @ApiProperty()
-  departmentId:number
- @ApiProperty()
-  designationId:number
- @ApiProperty()
-  employmentType:string
+
  @ApiProperty()
   ptoDays:number
  @ApiProperty()

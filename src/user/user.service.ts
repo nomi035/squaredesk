@@ -27,22 +27,22 @@ async  create(createUserDto: CreateUserDto) {
         id:organizationId
       }
     },
-    relations: 
-      ['office','department','designation']
+    // relations: 
+    //   ['office','department','designation']
     
    });
   }
   async  findAllByOffice(role:Role,officeId:number) {
-    return await this.usersRepository.findAndCount({
-     where: {
-       role,
-      officeId
-     },
-     relations:{
-       office:true
-     }
+    // return await this.usersRepository.findAndCount({
+    //  where: {
+    //    role,
+    //   officeId
+    //  },
+    //  relations:{
+    //    office:true
+    //  }
  
-    });
+    // });
    }
   
   async findByEmail(email: string) {

@@ -79,11 +79,27 @@ export class PayrollService {
     return Number(value.toFixed(2));
   }
 
+  async findPayrollForUserMonth(userId: number, monthKey: string) {
+    return this.payrollRepository.findOne({
+      where: { userId, month: monthKey },
+      relations: ['user'],
+    });
+  }
+
   async calculatePayrollForUser(
     userId: number,
     organizationId: number,
     monthKey = this.getCurrentMonthKey(),
   ) {
+    const existing = await this.findPayrollForUserMonth(userId, monthKey);
+    if (existing) {
+      return {
+        generated: false,
+        payroll: existing,
+        message: `Payroll already exists for ${monthKey}`,
+      };
+    }
+
     const user = await this.userRepository.findOne({
       where: { id: userId, organizationId },
     });
@@ -116,23 +132,17 @@ export class PayrollService {
       organizationId,
     };
 
-    const existing = await this.payrollRepository.findOne({
-      where: { userId, month: monthKey },
-    });
-
-    if (existing) {
-      await this.payrollRepository.update(existing.id, payrollData);
-      return this.payrollRepository.findOne({
-        where: { id: existing.id },
-        relations: ['user'],
-      });
-    }
-
     const saved = await this.payrollRepository.save(payrollData);
-    return this.payrollRepository.findOne({
+    const payroll = await this.payrollRepository.findOne({
       where: { id: saved.id },
       relations: ['user'],
     });
+
+    return {
+      generated: true,
+      payroll,
+      message: `Payroll generated for ${monthKey}`,
+    };
   }
 
   async generateBulk(organizationId: number, monthKey = this.getCurrentMonthKey()) {
@@ -143,7 +153,9 @@ export class PayrollService {
     const results: Array<{
       userId: number;
       success: boolean;
+      generated: boolean;
       payroll?: Payroll;
+      message?: string;
       error?: string;
     }> = [];
 
@@ -152,35 +164,47 @@ export class PayrollService {
         results.push({
           userId: user.id,
           success: false,
+          generated: false,
           error: 'Missing salaryAmount',
         });
         continue;
       }
 
       try {
-        const payroll = await this.calculatePayrollForUser(
+        const result = await this.calculatePayrollForUser(
           user.id,
           organizationId,
           monthKey,
         );
-        results.push({ userId: user.id, success: true, payroll });
+        results.push({
+          userId: user.id,
+          success: true,
+          generated: result.generated,
+          payroll: result.payroll,
+          message: result.message,
+        });
       } catch (error) {
         results.push({
           userId: user.id,
           success: false,
+          generated: false,
           error: error.message,
         });
       }
     }
 
-    const successful = results.filter((r) => r.success).length;
+    const generated = results.filter((r) => r.generated).length;
+    const skipped = results.filter((r) => r.success && !r.generated).length;
+    const failed = results.filter((r) => !r.success).length;
+
     return {
       month: monthKey,
       expectedHoursPerUser: this.getExpectedHoursForMonth(monthKey),
       hoursPerWorkday: HOURS_PER_WORKDAY,
       totalUsers: users.length,
-      processed: successful,
-      failed: results.length - successful,
+      generated,
+      skipped,
+      failed,
       results,
     };
   }

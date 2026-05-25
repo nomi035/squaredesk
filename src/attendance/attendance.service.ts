@@ -80,15 +80,15 @@ export class AttendanceService {
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    return this.attendanceRepository.findOne({
-      where: {
-        createdAt: Between(startOfDay, endOfDay),
-        employee:{
-          officeId: id
-        }
-      },
-      relations: ['breaks'],
-    });
+    // return this.attendanceRepository.findOne({
+    //   where: {
+    //     createdAt: Between(startOfDay, endOfDay),
+    //     employee:{
+    //       officeId: id
+    //     }
+    //   },
+    //   relations: ['breaks'],
+    // });
   }
     async getTodayAttendanceAllOrganization(id:number) {
     const startOfDay = new Date();
