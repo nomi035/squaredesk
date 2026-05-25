@@ -33,16 +33,14 @@ async  create(createUserDto: CreateUserDto) {
    });
   }
   async  findAllByOffice(role:Role,officeId:number) {
-    // return await this.usersRepository.findAndCount({
-    //  where: {
-    //    role,
-    //   officeId
-    //  },
-    //  relations:{
-    //    office:true
-    //  }
+    return await this.usersRepository.findAndCount({
+     where: {
+       role,
+      organizationId:officeId
+     },
+   
  
-    // });
+    });
    }
   
   async findByEmail(email: string) {

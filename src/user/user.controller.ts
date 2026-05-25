@@ -41,12 +41,12 @@ export class UserController {
     return this.userService.findAll();
   }
 
-  // @Get('/office/based')
-  // @UseGuards(JwtAuthGuard)
-  // async findAllOffice(@Query('role') role: Role,@currentUser() user: any) {
-  //   const activeUser=await this.userService.findOne(user.userId);
-  //   return this.userService.findAllByOffice(role,activeUser.officeId);
-  // }
+  @Get('/office/based')
+  @UseGuards(JwtAuthGuard)
+  async findAllOffice(@Query('role') role: Role,@currentUser() user: any) {
+    const activeUser=await this.userService.findOne(user.userId);
+    return this.userService.findAllByOffice(role,activeUser.organizationId);
+  }
    @Get('/organization/based')
   @UseGuards(JwtAuthGuard)
   findAllByOrganization(@Query('role') role: Role,@currentUser() user: any) {
