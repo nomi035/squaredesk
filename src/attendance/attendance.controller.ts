@@ -141,7 +141,7 @@ getAttendanceRangeOffice(
   @currentUser() user: any
 ) {
 
-  return this.attendanceService.getAttendanceByDateRangeOffice(startDate, endDate,user.office);
+  return this.attendanceService.getAttendanceByDateRangeOffice(startDate, endDate,user.organization);
 }
 
   @ApiBearerAuth()

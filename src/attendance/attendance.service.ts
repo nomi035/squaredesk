@@ -158,7 +158,7 @@ export class AttendanceService {
       start: startDate,
       end: endDate,
     })
-    .andWhere('employee.officeId = :orgId', { orgId: id })
+    .andWhere('employee.organizationId = :orgId', { orgId: id })
     .orderBy('attendance.employeeId', 'ASC')
     .addOrderBy('attendance.checkinDate', 'ASC')
     .getMany();
