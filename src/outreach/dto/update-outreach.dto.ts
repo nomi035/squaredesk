@@ -5,11 +5,6 @@ export class UpdateOutreachDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  comment?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
   status?: string;
 
   @ApiPropertyOptional()

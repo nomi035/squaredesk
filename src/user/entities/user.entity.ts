@@ -3,7 +3,8 @@ import { Department } from 'src/department/entities/department.entity';
 import { Designation } from 'src/designation/entities/designation.entity';
 import { Office } from 'src/office/entities/office.entity';
 import { Organization } from 'src/organizations/entities/organization.entity';
-import { Column, Entity, JoinColumn, ManyToOne, OneToOne } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
+import { UserDocument } from './user-document.entity';
 
 @Entity('User')
 export class User extends BaseEntity {
@@ -61,8 +62,32 @@ export class User extends BaseEntity {
   organization: Organization;
   @Column({ nullable: true })
   salaryAmount: number;
+  @Column({ nullable: true })
+  employeeId: string;
+  @Column({ nullable: true })
+  bloodGroup: string;
+  @Column({ nullable: true })
+  department: string;
+  @Column({ nullable: true })
+  cnicNumber: string;
+  @Column({ nullable: true })
+  profilePic: string;
 
+  @Column({ nullable: true })
+  reportsToId: number;
 
+  @ManyToOne(() => User, (user) => user.directReports, {
+    onDelete: 'SET NULL',
+    nullable: true,
+  })
+  @JoinColumn({ name: 'reportsToId' })
+  reportsTo: User;
+
+  @OneToMany(() => User, (user) => user.reportsTo)
+  directReports: User[];
+
+  @OneToMany(() => UserDocument, (document) => document.user, { cascade: true })
+  documents: UserDocument[];
 }
 
 export enum Role {

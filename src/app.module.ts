@@ -18,6 +18,7 @@ import { OutreachModule } from './outreach/outreach.module';
 import { TasksModule } from './tasks/tasks.module';
 import { PermissionModule } from './permission/permission.module';
 import { PayrollModule } from './payroll/payroll.module';
+import { CompanyPoliciesModule } from './company-policies/company-policies.module';
 
 @Module({
   imports: [UserModule,
@@ -47,7 +48,8 @@ import { PayrollModule } from './payroll/payroll.module';
      OutreachModule,
      TasksModule,
      PermissionModule,
-     PayrollModule,],
+     PayrollModule,
+     CompanyPoliciesModule,],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -1,5 +1,6 @@
 import { BaseEntity } from 'base.entity';
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, OneToMany } from 'typeorm';
+import { OutreachComment } from './outreach-comment.entity';
 
 @Entity('Outreach')
 export class Outreach extends BaseEntity {
@@ -50,4 +51,9 @@ export class Outreach extends BaseEntity {
 
   @Column({ nullable: true })
   organizationId: number;
+
+  @OneToMany(() => OutreachComment, (comment) => comment.outreach, {
+    cascade: true,
+  })
+  comments: OutreachComment[];
 }

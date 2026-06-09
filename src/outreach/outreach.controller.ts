@@ -15,6 +15,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guard';
 import { currentUser } from 'src/decorators/currentuser';
+import { CreateOutreachCommentDto } from './dto/create-outreach-comment.dto';
 import { UpdateOutreachDto } from './dto/update-outreach.dto';
 import { OutreachService } from './outreach.service';
 
@@ -55,8 +56,20 @@ export class OutreachController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Get()
-  findAll(@currentUser() user: { organization: number }) {
-    return this.outreachService.findAll(user.organization);
+  @ApiQuery({ name: 'state', required: false, description: 'Filter by state (e.g. CA, NY)' })
+  @ApiQuery({ name: 'taxonomy', required: false, description: 'Filter by taxonomy (partial match)' })
+  @ApiQuery({ name: 'disposition', required: false, description: 'Filter by disposition (partial match)' })
+  findAll(
+    @currentUser() user: { organization: number },
+    @Query('state') state?: string,
+    @Query('taxonomy') taxonomy?: string,
+    @Query('disposition') disposition?: string,
+  ) {
+    return this.outreachService.findAll(user.organization, {
+      state,
+      taxonomy,
+      disposition,
+    });
   }
 
   @UseGuards(JwtAuthGuard)
@@ -64,6 +77,32 @@ export class OutreachController {
   @Delete('organization')
   removeAllByOrganization(@currentUser() user: { organization: number }) {
     return this.outreachService.removeAllByOrganization(user.organization);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get(':id/comments')
+  findComments(
+    @Param('id') id: string,
+    @currentUser() user: { organization: number },
+  ) {
+    return this.outreachService.findComments(+id, user.organization);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post(':id/comments')
+  addComment(
+    @Param('id') id: string,
+    @Body() createDto: CreateOutreachCommentDto,
+    @currentUser() user: { organization: number; userId: number },
+  ) {
+    return this.outreachService.addComment(
+      +id,
+      user.organization,
+      user.userId,
+      createDto,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
