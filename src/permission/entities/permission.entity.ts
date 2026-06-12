@@ -17,6 +17,7 @@ export enum PermissionName {
   PAYROLLS = 'payrolls',
   SHIFT = 'shift',
   SETTINGS = 'settings',
+  COMPANY_POLICIES = 'company_policies',
 }
 
 @Entity('Permission')

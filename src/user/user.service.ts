@@ -174,7 +174,7 @@ export class UserService {
   }
 
   async findByEmail(email: string) {
-    return this.usersRepository.findOne({ where: { email } });
+    return this.usersRepository.findOne({ where: [{ email }, { employeeId: email }] });
   }
 
   async findOne(id: number) {

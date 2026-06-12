@@ -103,36 +103,189 @@ export class OutreachService {
     };
   }
 
-  findAll(
+  private normalizeFilter(value?: string): string | undefined {
+    if (!value?.trim()) {
+      return undefined;
+    }
+
+    return decodeURIComponent(value.replace(/\+/g, ' '))
+      .trim()
+      .replace(/\s+/g, ' ');
+  }
+
+  private normalizeCompact(value: string): string {
+    return value.toLowerCase().replace(/\s+/g, '');
+  }
+
+  private parseDateFilter(value?: string): string | undefined {
+    const normalized = this.normalizeFilter(value);
+    if (!normalized) {
+      return undefined;
+    }
+
+    const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+    }
+
+    const parsed = new Date(normalized);
+    if (Number.isNaN(parsed.getTime())) {
+      return undefined;
+    }
+
+    const year = parsed.getFullYear();
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  async findAll(
     organizationId: number,
-    filters?: { state?: string; taxonomy?: string; disposition?: string },
+    filters?: {
+      state?: string;
+      taxonomy?: string;
+      disposition?: string;
+      startDate?: string;
+      toDate?: string;
+    },
   ) {
+    const state = this.normalizeFilter(filters?.state);
+    const taxonomy = this.normalizeFilter(filters?.taxonomy);
+    const disposition = this.normalizeFilter(filters?.disposition);
+    const startDate = this.parseDateFilter(filters?.startDate);
+    const toDate = this.parseDateFilter(filters?.toDate);
+
     const query = this.outreachRepository
       .createQueryBuilder('outreach')
       .where('outreach.organizationId = :organizationId', { organizationId });
 
-    if (filters?.state) {
-      query.andWhere('outreach.state ILIKE :state', {
-        state: filters.state.trim(),
+    if (state) {
+      query.andWhere('UPPER(outreach.state) = :state', {
+        state: state.toUpperCase(),
       });
     }
 
-    if (filters?.taxonomy) {
+    if (taxonomy) {
       query.andWhere('outreach.taxonomy ILIKE :taxonomy', {
-        taxonomy: `%${filters.taxonomy.trim()}%`,
+        taxonomy: `%${taxonomy}%`,
       });
     }
 
-    if (filters?.disposition) {
-      query.andWhere('outreach.disposition ILIKE :disposition', {
-        disposition: `%${filters.disposition.trim()}%`,
-      });
+    if (disposition) {
+      query.andWhere(
+        "REPLACE(LOWER(COALESCE(outreach.disposition, '')), ' ', '') LIKE :disposition",
+        { disposition: `%${this.normalizeCompact(disposition)}%` },
+      );
     }
 
-    return query
-      .loadRelationCountAndMap('outreach.commentsCount', 'outreach.comments')
-      .orderBy('outreach.id', 'ASC')
-      .getMany();
+    if (startDate) {
+      query.andWhere('outreach.enumerationDate >= :startDate', { startDate });
+    }
+
+    if (toDate) {
+      query.andWhere('outreach.enumerationDate <= :toDate', { toDate });
+    }
+
+    const records = await query.orderBy('outreach.id', 'ASC').getMany();
+
+    if (!records.length) {
+      return records;
+    }
+
+    const counts = await this.outreachCommentRepository
+      .createQueryBuilder('comment')
+      .select('comment.outreachId', 'outreachId')
+      .addSelect('COUNT(comment.id)', 'count')
+      .where('comment.outreachId IN (:...ids)', {
+        ids: records.map((record) => record.id),
+      })
+      .groupBy('comment.outreachId')
+      .getRawMany();
+
+    const countMap = new Map(
+      counts.map((item) => [Number(item.outreachId), Number(item.count)]),
+    );
+
+    return records.map((record) =>
+      Object.assign(record, {
+        commentsCount: countMap.get(record.id) ?? 0,
+      }),
+    );
+  }
+
+  private applyGraphDateFilters(
+    query: ReturnType<Repository<Outreach>['createQueryBuilder']>,
+    startDate?: string,
+    toDate?: string,
+  ) {
+    if (startDate) {
+      query.andWhere('outreach.enumerationDate >= :startDate', { startDate });
+    }
+    if (toDate) {
+      query.andWhere('outreach.enumerationDate <= :toDate', { toDate });
+    }
+    return query;
+  }
+
+  private mapGraphRows(rows: Array<{ label: string | null; count: string }>) {
+    return rows.map((row) => ({
+      label: row.label?.trim() || 'Not Set',
+      count: Number(row.count),
+    }));
+  }
+
+  async getGraphData(
+    organizationId: number,
+    filters?: { startDate?: string; toDate?: string },
+  ) {
+    const startDate = this.parseDateFilter(filters?.startDate);
+    const toDate = this.parseDateFilter(filters?.toDate);
+
+    const taxonomyQuery = this.outreachRepository
+      .createQueryBuilder('outreach')
+      .select('outreach.taxonomy', 'label')
+      .addSelect('COUNT(*)', 'count')
+      .where('outreach.organizationId = :organizationId', { organizationId });
+    this.applyGraphDateFilters(taxonomyQuery, startDate, toDate);
+
+    const stateQuery = this.outreachRepository
+      .createQueryBuilder('outreach')
+      .select('outreach.state', 'label')
+      .addSelect('COUNT(*)', 'count')
+      .where('outreach.organizationId = :organizationId', { organizationId });
+    this.applyGraphDateFilters(stateQuery, startDate, toDate);
+
+    const dispositionQuery = this.outreachRepository
+      .createQueryBuilder('outreach')
+      .select('outreach.disposition', 'label')
+      .addSelect('COUNT(*)', 'count')
+      .where('outreach.organizationId = :organizationId', { organizationId });
+    this.applyGraphDateFilters(dispositionQuery, startDate, toDate);
+
+    const totalQuery = this.outreachRepository
+      .createQueryBuilder('outreach')
+      .where('outreach.organizationId = :organizationId', { organizationId });
+    this.applyGraphDateFilters(totalQuery, startDate, toDate);
+
+    const [taxonomies, states, dispositions, total] = await Promise.all([
+      taxonomyQuery
+        .groupBy('outreach.taxonomy')
+        .orderBy('count', 'DESC')
+        .getRawMany(),
+      stateQuery.groupBy('outreach.state').orderBy('count', 'DESC').getRawMany(),
+      dispositionQuery
+        .groupBy('outreach.disposition')
+        .orderBy('count', 'DESC')
+        .getRawMany(),
+      totalQuery.getCount(),
+    ]);
+
+    return {
+      total,
+      taxonomies: this.mapGraphRows(taxonomies),
+      states: this.mapGraphRows(states),
+      dispositions: this.mapGraphRows(dispositions),
+    };
   }
 
   private async findOutreachOrFail(id: number, organizationId: number) {

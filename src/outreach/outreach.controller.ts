@@ -59,16 +59,38 @@ export class OutreachController {
   @ApiQuery({ name: 'state', required: false, description: 'Filter by state (e.g. CA, NY)' })
   @ApiQuery({ name: 'taxonomy', required: false, description: 'Filter by taxonomy (partial match)' })
   @ApiQuery({ name: 'disposition', required: false, description: 'Filter by disposition (partial match)' })
+  @ApiQuery({ name: 'startDate', required: false, description: 'Filter from enumeration date (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'toDate', required: false, description: 'Filter to enumeration date (YYYY-MM-DD)' })
   findAll(
     @currentUser() user: { organization: number },
     @Query('state') state?: string,
     @Query('taxonomy') taxonomy?: string,
     @Query('disposition') disposition?: string,
+    @Query('startDate') startDate?: string,
+    @Query('toDate') toDate?: string,
   ) {
     return this.outreachService.findAll(user.organization, {
       state,
       taxonomy,
       disposition,
+      startDate,
+      toDate,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get('graph')
+  @ApiQuery({ name: 'startDate', required: false, description: 'Filter from enumeration date (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'toDate', required: false, description: 'Filter to enumeration date (YYYY-MM-DD)' })
+  getGraphData(
+    @currentUser() user: { organization: number },
+    @Query('startDate') startDate?: string,
+    @Query('toDate') toDate?: string,
+  ) {
+    return this.outreachService.getGraphData(user.organization, {
+      startDate,
+      toDate,
     });
   }
 
