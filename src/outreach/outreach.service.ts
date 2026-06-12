@@ -139,7 +139,7 @@ export class OutreachService {
     return `${year}-${month}-${day}`;
   }
 
-  async findAll(
+  private buildFilteredQuery(
     organizationId: number,
     filters?: {
       state?: string;
@@ -186,10 +186,40 @@ export class OutreachService {
       query.andWhere('outreach.enumerationDate <= :toDate', { toDate });
     }
 
-    const records = await query.orderBy('outreach.id', 'ASC').getMany();
+    return query;
+  }
+
+  async findAll(
+    organizationId: number,
+    filters?: {
+      state?: string;
+      taxonomy?: string;
+      disposition?: string;
+      startDate?: string;
+      toDate?: string;
+      page?: number;
+      limit?: number;
+    },
+  ) {
+    const page = Math.max(Number(filters?.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(filters?.limit) || 20, 1), 100);
+    const skip = (page - 1) * limit;
+
+    const query = this.buildFilteredQuery(organizationId, filters)
+      .orderBy('outreach.id', 'ASC')
+      .skip(skip)
+      .take(limit);
+
+    const [records, total] = await query.getManyAndCount();
 
     if (!records.length) {
-      return records;
+      return {
+        data: [],
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit) || 0,
+      };
     }
 
     const counts = await this.outreachCommentRepository
@@ -206,11 +236,19 @@ export class OutreachService {
       counts.map((item) => [Number(item.outreachId), Number(item.count)]),
     );
 
-    return records.map((record) =>
+    const data = records.map((record) =>
       Object.assign(record, {
         commentsCount: countMap.get(record.id) ?? 0,
       }),
     );
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 0,
+    };
   }
 
   private applyGraphDateFilters(

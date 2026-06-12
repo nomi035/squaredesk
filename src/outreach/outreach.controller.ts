@@ -61,6 +61,8 @@ export class OutreachController {
   @ApiQuery({ name: 'disposition', required: false, description: 'Filter by disposition (partial match)' })
   @ApiQuery({ name: 'startDate', required: false, description: 'Filter from enumeration date (YYYY-MM-DD)' })
   @ApiQuery({ name: 'toDate', required: false, description: 'Filter to enumeration date (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Items per page (default: 20, max: 100)' })
   findAll(
     @currentUser() user: { organization: number },
     @Query('state') state?: string,
@@ -68,6 +70,8 @@ export class OutreachController {
     @Query('disposition') disposition?: string,
     @Query('startDate') startDate?: string,
     @Query('toDate') toDate?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     return this.outreachService.findAll(user.organization, {
       state,
@@ -75,6 +79,8 @@ export class OutreachController {
       disposition,
       startDate,
       toDate,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
     });
   }
 
