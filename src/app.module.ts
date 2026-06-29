@@ -29,7 +29,7 @@ import { CompanyPoliciesModule } from './company-policies/company-policies.modul
     port: Number(process.env.DB_PORT),
   
     autoLoadEntities: true,
-    synchronize: true,
+    //synchronize: true,
   
     //  ssl: {
     //  rejectUnauthorized: false,
