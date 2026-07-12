@@ -9,5 +9,6 @@ import { BreakModule } from 'src/break/break.module';
   controllers: [AttendanceController],
   providers: [AttendanceService],
   imports: [TypeOrmModule.forFeature([Attendance]), BreakModule],
+  exports: [AttendanceService],
 })
 export class AttendanceModule {}

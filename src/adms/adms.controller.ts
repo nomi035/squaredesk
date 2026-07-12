@@ -1,0 +1,90 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Query,
+  Req,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
+import { Request } from 'express';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from 'src/auth/guard';
+import { AdmsService } from './adms.service';
+
+@ApiTags('adms')
+@Controller('iclock')
+export class AdmsController {
+  constructor(private readonly admsService: AdmsService) {}
+
+  @Get('cdata')
+  async getCdata(
+    @Query('SN') serialNumber: string,
+    @Query('options') options?: string,
+  ) {
+    if (options === 'all' && serialNumber) {
+      await this.admsService.touchDevice(serialNumber);
+      return this.admsService.getPushOptions(serialNumber);
+    }
+
+    return 'OK';
+  }
+
+  @Post('cdata')
+  async postCdata(
+    @Req() req: Request,
+    @Query('SN') serialNumber: string,
+    @Query('table') table?: string,
+  ) {
+    const body =
+      typeof req.body === 'string'
+        ? req.body
+        : Buffer.isBuffer(req.body)
+          ? req.body.toString('utf8')
+          : '';
+
+    if (table === 'ATTLOG' && body) {
+      const count = await this.admsService.processAttLog(serialNumber, body);
+      return `OK:${count}`;
+    }
+
+    await this.admsService.touchDevice(serialNumber);
+    return 'OK';
+  }
+
+  @Get('getrequest')
+  async getRequest(@Query('SN') serialNumber: string) {
+    await this.admsService.touchDevice(serialNumber);
+    return 'OK';
+  }
+
+  @Post('devicecmd')
+  async deviceCmd(@Body() body: string) {
+    return 'OK';
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('devices')
+  listDevices() {
+    return this.admsService.listDevices();
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('devices/register')
+  registerDevice(
+    @Body()
+    body: {
+      serialNumber: string;
+      organizationId: number;
+      name?: string;
+    },
+  ) {
+    return this.admsService.registerDevice(
+      body.serialNumber,
+      body.organizationId,
+      body.name,
+    );
+  }
+}

@@ -19,6 +19,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { PermissionModule } from './permission/permission.module';
 import { PayrollModule } from './payroll/payroll.module';
 import { CompanyPoliciesModule } from './company-policies/company-policies.module';
+import { AdmsModule } from './adms/adms.module';
 
 @Module({
   imports: [UserModule,
@@ -29,8 +30,7 @@ import { CompanyPoliciesModule } from './company-policies/company-policies.modul
     port: Number(process.env.DB_PORT),
   
     autoLoadEntities: true,
-    //synchronize: true,
-  
+    synchronize:true,  
     //  ssl: {
     //  rejectUnauthorized: false,
     //  },
@@ -49,7 +49,8 @@ import { CompanyPoliciesModule } from './company-policies/company-policies.modul
      TasksModule,
      PermissionModule,
      PayrollModule,
-     CompanyPoliciesModule,],
+     CompanyPoliciesModule,
+     AdmsModule,],
   controllers: [AppController],
   providers: [AppService],
 })

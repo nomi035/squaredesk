@@ -420,6 +420,83 @@ async getAdminMonthHours(officeId:number){
 
   return result;
 }
+
+  toDateOnly(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
+
+  formatTime12h(date: Date): string {
+    const hours24 = date.getHours();
+    const minutes = date.getMinutes();
+    const seconds = date.getSeconds();
+    const period = hours24 >= 12 ? 'PM' : 'AM';
+    let hours12 = hours24 % 12;
+    if (hours12 === 0) {
+      hours12 = 12;
+    }
+
+    return `${String(hours12).padStart(2, '0')}:${String(minutes).padStart(
+      2,
+      '0',
+    )}:${String(seconds).padStart(2, '0')} ${period}`;
+  }
+
+  async findAttendanceByCheckinDate(employeeId: number, checkinDate: Date) {
+    return this.attendanceRepository.findOne({
+      where: {
+        employeeId,
+        checkinDate,
+      },
+    });
+  }
+
+  async recordBiometricPunch(
+    employeeUserId: number,
+    punchAt: Date,
+    status?: number,
+  ) {
+    const checkinDate = this.toDateOnly(punchAt);
+    const punchTime = this.formatTime12h(punchAt);
+    const existing = await this.findAttendanceByCheckinDate(
+      employeeUserId,
+      checkinDate,
+    );
+
+    const isCheckOut =
+      status === 1 || (status !== 0 && existing && !existing.checkoutDate);
+
+    if (!isCheckOut) {
+      if (existing && !existing.checkoutDate) {
+        return existing;
+      }
+
+      if (existing?.checkoutDate) {
+        return null;
+      }
+
+      return this.attendanceRepository.save(
+        this.attendanceRepository.create({
+          employeeId: employeeUserId,
+          checkinDate,
+          checkinTime: punchTime,
+        }),
+      );
+    }
+
+    if (!existing || existing.checkoutDate) {
+      return null;
+    }
+
+    existing.checkoutDate = checkinDate;
+    existing.checkoutTime = punchTime;
+    existing.duration = this.calculateDuration(
+      existing.checkinTime,
+      punchTime,
+    );
+
+    await this.attendanceRepository.save(existing);
+    return existing;
+  }
 }
 
 
