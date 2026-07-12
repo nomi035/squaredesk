@@ -25,12 +25,7 @@ export class AdmsController {
     @Query('SN') serialNumber: string,
     @Query('options') options?: string,
   ) {
-    if (options === 'all' && serialNumber) {
-      await this.admsService.touchDevice(serialNumber);
-      return this.admsService.getPushOptions(serialNumber);
-    }
-
-    return 'OK';
+    return this.admsService.getCdataResponse(serialNumber, options);
   }
 
   @Post('cdata')
@@ -64,6 +59,13 @@ export class AdmsController {
     return 'OK';
   }
 
+  @Post('push')
+  @HttpCode(200)
+  @Header('Content-Type', 'text/plain; charset=utf-8')
+  async push(@Query('SN') serialNumber: string) {
+    return this.admsService.getPushConfig(serialNumber);
+  }
+
   @Post('registry')
   @HttpCode(200)
   @Header('Content-Type', 'text/plain; charset=utf-8')
@@ -78,8 +80,7 @@ export class AdmsController {
           ? req.body.toString('utf8')
           : '';
 
-    await this.admsService.registerFromDevice(serialNumber, body);
-    return 'OK';
+    return this.admsService.registerFromDevice(serialNumber, body);
   }
 
   @Post('devicecmd')

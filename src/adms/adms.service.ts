@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
+import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
 import { AttendanceService } from 'src/attendance/attendance.service';
 import { User } from 'src/user/entities/user.entity';
@@ -22,26 +23,81 @@ export class AdmsService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  getPushOptions(serialNumber: string): string {
-    const timezone =
-      this.configService.get<string>('ADMS_TIMEZONE') ?? '+05:00';
+  private generateCode(length = 16): string {
+    return randomBytes(length).toString('hex').slice(0, 32);
+  }
+
+  private getPushVersion(): string {
+    return this.configService.get<string>('ADMS_PUSH_VERSION') ?? '3.1.2';
+  }
+
+  private buildPushServerConfig(device: BiometricDevice): string {
+    if (!device.sessionId) {
+      device.sessionId = this.generateCode();
+    }
 
     return [
-      `GET OPTION FROM: ${serialNumber}`,
+      `ServerVersion=${this.getPushVersion()}`,
+      'ServerName=medaxis',
+      `PushVersion=${this.getPushVersion()}`,
       'ErrorDelay=60',
-      'Delay=30',
+      'RequestDelay=30',
       'TransTimes=00:00;14:05',
       'TransInterval=1',
-      'TransFlag=AttLog\tOpLog\tAttPhoto\tEnrollUser\tChgUser\tEnrollFP\tChgFP',
+      'TransTables=AttLog OpLog',
       'Realtime=1',
-      'Encrypt=0',
-      `TimeZone=${timezone}`,
-      'Timeout=60',
-      'SyncTime=3600',
-      'ServerVer=1.0.0',
-      'ATTLOGStamp=0',
-      'OPERLOGStamp=0',
-    ].join('\n');
+      `SessionID=${device.sessionId}`,
+      'TimeoutSec=60',
+    ].join('\r\n');
+  }
+
+  async getCdataResponse(
+    serialNumber: string,
+    options?: string,
+  ): Promise<string> {
+    if (options !== 'all' || !serialNumber) {
+      return 'OK';
+    }
+
+    const device = await this.touchDevice(serialNumber);
+    if (!device?.registryCode) {
+      return 'OK';
+    }
+
+    if (!device.sessionId) {
+      device.sessionId = this.generateCode();
+      await this.deviceRepository.save(device);
+    }
+
+    return [
+      'registry=ok',
+      `RegistryCode=${device.registryCode}`,
+      `ServerVersion=${this.getPushVersion()}`,
+      'ServerName=medaxis',
+      `PushProtVer=${this.getPushVersion()}`,
+      'ErrorDelay=60',
+      'RequestDelay=30',
+      'TransTimes=00:00;14:05',
+      'TransInterval=1',
+      'TransTables=AttLog OpLog',
+      'Realtime=1',
+      `SessionID=${device.sessionId}`,
+      'TimeoutSec=60',
+    ].join('\r\n');
+  }
+
+  async getPushConfig(serialNumber: string): Promise<string> {
+    const device = await this.touchDevice(serialNumber);
+    if (!device?.registryCode) {
+      return 'OK';
+    }
+
+    if (!device.sessionId) {
+      device.sessionId = this.generateCode();
+    }
+
+    await this.deviceRepository.save(device);
+    return this.buildPushServerConfig(device);
   }
 
   async touchDevice(serialNumber: string): Promise<BiometricDevice | null> {
@@ -220,18 +276,30 @@ export class AdmsService {
     );
   }
 
-  async registerFromDevice(serialNumber: string, body: string) {
+  async registerFromDevice(serialNumber: string, body: string): Promise<string> {
     if (body) {
       this.logger.log(`Device registry from ${serialNumber}: ${body.slice(0, 200)}`);
     }
 
     const deviceName = body.match(/~?DeviceName=([^,]+)/)?.[1];
-    const device = await this.touchDevice(serialNumber);
+    let device = await this.touchDevice(serialNumber);
 
-    if (device && deviceName && device.name !== deviceName) {
-      device.name = deviceName;
-      await this.deviceRepository.save(device);
+    if (!device) {
+      return 'OK';
     }
+
+    if (!device.registryCode) {
+      device.registryCode = this.generateCode();
+    }
+
+    if (deviceName) {
+      device.name = deviceName;
+    }
+
+    device = await this.deviceRepository.save(device);
+    this.logger.log(`Device ${serialNumber} registry code assigned`);
+
+    return `RegistryCode=${device.registryCode}`;
   }
 
   async registerDevice(serialNumber: string, organizationId: number, name?: string) {

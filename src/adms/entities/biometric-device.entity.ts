@@ -15,4 +15,10 @@ export class BiometricDevice extends BaseEntity {
 
   @Column({ type: 'timestamptz', nullable: true })
   lastSeenAt: Date;
+
+  @Column({ nullable: true })
+  registryCode: string;
+
+  @Column({ nullable: true })
+  sessionId: string;
 }
