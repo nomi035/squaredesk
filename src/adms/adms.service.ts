@@ -220,6 +220,14 @@ export class AdmsService {
     );
   }
 
+  async registerFromDevice(serialNumber: string, body: string) {
+    if (body) {
+      this.logger.log(`Device registry from ${serialNumber}: ${body.slice(0, 200)}`);
+    }
+
+    await this.touchDevice(serialNumber);
+  }
+
   async registerDevice(serialNumber: string, organizationId: number, name?: string) {
     const existing = await this.deviceRepository.findOne({
       where: { serialNumber },

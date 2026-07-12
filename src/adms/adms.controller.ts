@@ -58,6 +58,22 @@ export class AdmsController {
     return 'OK';
   }
 
+  @Post('registry')
+  async registry(
+    @Req() req: Request,
+    @Query('SN') serialNumber: string,
+  ) {
+    const body =
+      typeof req.body === 'string'
+        ? req.body
+        : Buffer.isBuffer(req.body)
+          ? req.body.toString('utf8')
+          : '';
+
+    await this.admsService.registerFromDevice(serialNumber, body);
+    return 'OK';
+  }
+
   @Post('devicecmd')
   async deviceCmd(@Body() body: string) {
     return 'OK';
