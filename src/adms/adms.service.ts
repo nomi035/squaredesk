@@ -170,6 +170,60 @@ export class AdmsService {
     return processed;
   }
 
+  async processRtLog(serialNumber: string, body: string): Promise<number> {
+    const device = await this.touchDevice(serialNumber);
+    if (!device) {
+      return 0;
+    }
+
+    this.logger.log(`RTLOG from ${serialNumber}: ${body.slice(0, 300)}`);
+
+    const lines = body
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    let processed = 0;
+
+    for (const line of lines) {
+      const parsed = this.parseRtLogLine(line);
+      if (!parsed) {
+        continue;
+      }
+
+      const handled = await this.processDevicePunch(
+        device,
+        parsed.pin,
+        parsed.time,
+        parsed.inoutstatus,
+      );
+
+      if (handled) {
+        processed += 1;
+      }
+    }
+
+    return processed;
+  }
+
+  private parseRtLogLine(
+    line: string,
+  ): { pin: string; time: string; inoutstatus: number } | null {
+    const pin = line.match(/(?:^|\s)pin=(\S+)/)?.[1];
+    const time = line.match(/time=(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/)?.[1];
+    const inoutstatus = line.match(/inoutstatus=(\d+)/)?.[1];
+
+    if (!pin || pin === '0' || !time) {
+      return null;
+    }
+
+    return {
+      pin,
+      time,
+      inoutstatus: inoutstatus !== undefined ? Number(inoutstatus) : NaN,
+    };
+  }
+
   private async processAttLogLine(
     device: BiometricDevice,
     line: string,
@@ -184,6 +238,15 @@ export class AdmsService {
     const punchTime = parts[1].trim();
     const status = parts.length > 2 ? Number(parts[2]) : NaN;
 
+    return this.processDevicePunch(device, devicePin, punchTime, status);
+  }
+
+  private async processDevicePunch(
+    device: BiometricDevice,
+    devicePin: string,
+    punchTime: string,
+    status: number,
+  ): Promise<boolean> {
     const existing = await this.punchLogRepository.findOne({
       where: {
         deviceSn: device.serialNumber,

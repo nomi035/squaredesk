@@ -48,6 +48,11 @@ export class AdmsController {
       return `OK:${count}`;
     }
 
+    if (table === 'rtlog' && body) {
+      await this.admsService.processRtLog(serialNumber, body);
+      return 'OK';
+    }
+
     await this.admsService.touchDevice(serialNumber);
     return 'OK';
   }
