@@ -225,7 +225,13 @@ export class AdmsService {
       this.logger.log(`Device registry from ${serialNumber}: ${body.slice(0, 200)}`);
     }
 
-    await this.touchDevice(serialNumber);
+    const deviceName = body.match(/~?DeviceName=([^,]+)/)?.[1];
+    const device = await this.touchDevice(serialNumber);
+
+    if (device && deviceName && device.name !== deviceName) {
+      device.name = deviceName;
+      await this.deviceRepository.save(device);
+    }
   }
 
   async registerDevice(serialNumber: string, organizationId: number, name?: string) {

@@ -6,6 +6,8 @@ import {
   Req,
   Body,
   UseGuards,
+  HttpCode,
+  Header,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -18,6 +20,7 @@ export class AdmsController {
   constructor(private readonly admsService: AdmsService) {}
 
   @Get('cdata')
+  @Header('Content-Type', 'text/plain; charset=utf-8')
   async getCdata(
     @Query('SN') serialNumber: string,
     @Query('options') options?: string,
@@ -31,6 +34,8 @@ export class AdmsController {
   }
 
   @Post('cdata')
+  @HttpCode(200)
+  @Header('Content-Type', 'text/plain; charset=utf-8')
   async postCdata(
     @Req() req: Request,
     @Query('SN') serialNumber: string,
@@ -53,12 +58,15 @@ export class AdmsController {
   }
 
   @Get('getrequest')
+  @Header('Content-Type', 'text/plain; charset=utf-8')
   async getRequest(@Query('SN') serialNumber: string) {
     await this.admsService.touchDevice(serialNumber);
     return 'OK';
   }
 
   @Post('registry')
+  @HttpCode(200)
+  @Header('Content-Type', 'text/plain; charset=utf-8')
   async registry(
     @Req() req: Request,
     @Query('SN') serialNumber: string,
@@ -75,6 +83,8 @@ export class AdmsController {
   }
 
   @Post('devicecmd')
+  @HttpCode(200)
+  @Header('Content-Type', 'text/plain; charset=utf-8')
   async deviceCmd(@Body() body: string) {
     return 'OK';
   }
