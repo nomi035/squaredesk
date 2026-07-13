@@ -44,7 +44,7 @@ export class AdmsService {
       'RequestDelay=30',
       'TransTimes=00:00;14:05',
       'TransInterval=1',
-      'TransTables=AttLog OpLog',
+      'TransTables=User Transaction',
       'Realtime=1',
       `SessionID=${device.sessionId}`,
       'TimeoutSec=60',
@@ -79,7 +79,7 @@ export class AdmsService {
       'RequestDelay=30',
       'TransTimes=00:00;14:05',
       'TransInterval=1',
-      'TransTables=AttLog OpLog',
+      'TransTables=User Transaction',
       'Realtime=1',
       `SessionID=${device.sessionId}`,
       'TimeoutSec=60',
@@ -98,6 +98,17 @@ export class AdmsService {
 
     await this.deviceRepository.save(device);
     return this.buildPushServerConfig(device);
+  }
+
+  logIncoming(
+    endpoint: string,
+    serialNumber: string,
+    details?: { table?: string; body?: string },
+  ) {
+    const table = details?.table ? ` table=${details.table}` : '';
+    const body = details?.body?.trim();
+    const preview = body ? ` body=${body.slice(0, 300)}` : '';
+    this.logger.log(`ADMS ${endpoint} SN=${serialNumber}${table}${preview}`);
   }
 
   async touchDevice(serialNumber: string): Promise<BiometricDevice | null> {

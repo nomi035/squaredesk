@@ -43,12 +43,18 @@ export class AdmsController {
           ? req.body.toString('utf8')
           : '';
 
-    if (table === 'ATTLOG' && body) {
+    const normalizedTable = table?.toLowerCase();
+    this.admsService.logIncoming('POST /iclock/cdata', serialNumber, {
+      table,
+      body,
+    });
+
+    if (normalizedTable === 'attlog' && body) {
       const count = await this.admsService.processAttLog(serialNumber, body);
       return `OK:${count}`;
     }
 
-    if (table === 'rtlog' && body) {
+    if (normalizedTable === 'rtlog' && body) {
       await this.admsService.processRtLog(serialNumber, body);
       return 'OK';
     }
@@ -60,6 +66,14 @@ export class AdmsController {
   @Get('getrequest')
   @Header('Content-Type', 'text/plain; charset=utf-8')
   async getRequest(@Query('SN') serialNumber: string) {
+    this.admsService.logIncoming('GET /iclock/getrequest', serialNumber);
+    await this.admsService.touchDevice(serialNumber);
+    return 'OK';
+  }
+
+  @Get('ping')
+  @Header('Content-Type', 'text/plain; charset=utf-8')
+  async ping(@Query('SN') serialNumber: string) {
     await this.admsService.touchDevice(serialNumber);
     return 'OK';
   }
