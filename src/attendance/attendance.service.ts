@@ -1,10 +1,10 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Attendance } from './entities/attendance.entity';
 import { Repository } from 'typeorm/repository/Repository';
-import { Between, DataSource } from 'typeorm';
+import { Between, DataSource, IsNull } from 'typeorm';
 import { PatchAttendanceDto } from './dto/patch-attendance.dto';
 import { Break } from 'src/break/entities/break.entity';
 function startOfWeek(date: Date): Date {
@@ -25,6 +25,8 @@ function startOfMonth(date: Date): Date {
 
 @Injectable()
 export class AttendanceService {
+  private readonly logger = new Logger(AttendanceService.name);
+
   constructor(@InjectRepository(Attendance) private attendanceRepository: Repository<Attendance>,
   private readonly dataSource: DataSource,) {
 
@@ -450,6 +452,21 @@ async getAdminMonthHours(officeId:number){
     });
   }
 
+  async findOpenAttendanceByCheckinDate(
+    employeeId: number,
+    checkinDate: Date,
+  ) {
+    return this.attendanceRepository.findOne({
+      where: {
+        employeeId,
+        checkinDate,
+        checkoutDate: IsNull(),
+        checkoutTime: IsNull(),
+      },
+      order: { id: 'DESC' },
+    });
+  }
+
   async recordBiometricPunch(
     employeeUserId: number,
     punchAt: Date,
@@ -457,45 +474,58 @@ async getAdminMonthHours(officeId:number){
   ) {
     const checkinDate = this.toDateOnly(punchAt);
     const punchTime = this.formatTime12h(punchAt);
-    const existing = await this.findAttendanceByCheckinDate(
+    const openAttendance = await this.findOpenAttendanceByCheckinDate(
       employeeUserId,
       checkinDate,
     );
 
+    const isCheckIn = status === 0;
     const isCheckOut =
-      status === 1 || (status !== 0 && existing && !existing.checkoutDate);
+      status === 1 || (!isCheckIn && !!openAttendance);
 
-    if (!isCheckOut) {
-      if (existing && !existing.checkoutDate) {
-        return existing;
+    if (isCheckIn || !isCheckOut) {
+      // Check-in: create only when no open record exists that day
+      // (checkoutDate and checkoutTime both null).
+      if (openAttendance) {
+        this.logger.log(
+          `Check-in skipped for user ${employeeUserId}: already checked in at ${openAttendance.checkinTime}`,
+        );
+        return openAttendance;
       }
 
-      if (existing?.checkoutDate) {
-        return null;
-      }
-
-      return this.attendanceRepository.save(
+      const created = await this.attendanceRepository.save(
         this.attendanceRepository.create({
           employeeId: employeeUserId,
           checkinDate,
           checkinTime: punchTime,
         }),
       );
+
+      this.logger.log(
+        `User ${employeeUserId} checked in successfully at ${punchTime} (attendance #${created.id})`,
+      );
+      return created;
     }
 
-    if (!existing || existing.checkoutDate) {
+    if (!openAttendance) {
+      this.logger.warn(
+        `Check-out skipped for user ${employeeUserId}: no open check-in found for ${checkinDate.toISOString().slice(0, 10)}`,
+      );
       return null;
     }
 
-    existing.checkoutDate = checkinDate;
-    existing.checkoutTime = punchTime;
-    existing.duration = this.calculateDuration(
-      existing.checkinTime,
+    openAttendance.checkoutDate = checkinDate;
+    openAttendance.checkoutTime = punchTime;
+    openAttendance.duration = this.calculateDuration(
+      openAttendance.checkinTime,
       punchTime,
     );
 
-    await this.attendanceRepository.save(existing);
-    return existing;
+    await this.attendanceRepository.save(openAttendance);
+    this.logger.log(
+      `User ${employeeUserId} checked out successfully at ${punchTime} (attendance #${openAttendance.id}, duration ${openAttendance.duration})`,
+    );
+    return openAttendance;
   }
 }
 
