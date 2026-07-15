@@ -43,6 +43,42 @@ export class UserService {
     };
   }
 
+  parseUpdateUserBody(body: Record<string, string>): UpdateUserDto {
+    const dto: UpdateUserDto = {};
+
+    if (body.firstName !== undefined) dto.firstName = body.firstName;
+    if (body.lastName !== undefined) dto.lastName = body.lastName;
+    if (body.password !== undefined) dto.password = body.password;
+    if (body.email !== undefined) dto.email = body.email;
+    if (body.phone !== undefined) dto.phone = body.phone;
+    if (body.address1 !== undefined) dto.address1 = body.address1;
+    if (body.address2 !== undefined) dto.address2 = body.address2;
+    if (body.city !== undefined) dto.city = body.city;
+    if (body.state !== undefined) dto.state = body.state;
+    if (body.zip !== undefined) dto.zip = body.zip;
+    if (body.ptoDays !== undefined) dto.ptoDays = Number(body.ptoDays);
+    if (body.emergencyName !== undefined) dto.emergencyName = body.emergencyName;
+    if (body.emergencyPhone !== undefined) dto.emergencyPhone = body.emergencyPhone;
+    if (body.emergencyRelation !== undefined) {
+      dto.emergencyRelation = body.emergencyRelation;
+    }
+    if (body.role !== undefined) dto.role = body.role as Role;
+    if (body.salaryAmount !== undefined) {
+      dto.salaryAmount = Number(body.salaryAmount);
+    }
+    if (body.employeeId !== undefined) dto.employeeId = body.employeeId;
+    if (body.bloodGroup !== undefined) dto.bloodGroup = body.bloodGroup;
+    if (body.department !== undefined) dto.department = body.department;
+    if (body.cnicNumber !== undefined) dto.cnicNumber = body.cnicNumber;
+    if (body.reportsToId !== undefined) {
+      dto.reportsToId = body.reportsToId === '' || body.reportsToId === 'null'
+        ? null
+        : Number(body.reportsToId);
+    }
+
+    return dto;
+  }
+
   private mapUserSummary(user: User) {
     return {
       id: user.id,
@@ -234,13 +270,70 @@ export class UserService {
     if (updateUserDto.reportsToId !== undefined) {
       const existing = await this.findOne(id);
       await this.validateReportsTo(
-        updateUserDto.reportsToId,
+        updateUserDto.reportsToId ?? undefined,
         id,
         existing.organizationId,
       );
     }
 
     return this.usersRepository.update(id, updateUserDto);
+  }
+
+  async updateWithFiles(
+    id: number,
+    updateUserDto: UpdateUserDto,
+    profilePic?: Express.Multer.File,
+    documents: Express.Multer.File[] = [],
+    documentNames: string[] = [],
+  ) {
+    const existing = await this.findOne(id);
+    if (!existing) {
+      throw new NotFoundException(`User ${id} not found`);
+    }
+
+    if (updateUserDto.reportsToId !== undefined) {
+      await this.validateReportsTo(
+        updateUserDto.reportsToId ?? undefined,
+        id,
+        existing.organizationId,
+      );
+    }
+
+    if (Object.keys(updateUserDto).length > 0) {
+      await this.usersRepository.update(id, updateUserDto);
+    }
+
+    const folderBase = `organizations/${existing.organizationId}/users/${id}`;
+
+    if (profilePic) {
+      if (existing.profilePic) {
+        await this.s3Service.deleteFileByUrl(existing.profilePic);
+      }
+      const profilePicUrl = await this.s3Service.uploadFile(
+        profilePic,
+        `${folderBase}/profile`,
+      );
+      await this.usersRepository.update(id, { profilePic: profilePicUrl });
+    }
+
+    for (let index = 0; index < documents.length; index += 1) {
+      const file = documents[index];
+      const name =
+        documentNames[index]?.trim() ||
+        file.originalname ||
+        `Document ${index + 1}`;
+      const url = await this.s3Service.uploadFile(
+        file,
+        `${folderBase}/documents`,
+      );
+      await this.userDocumentRepository.save({
+        userId: id,
+        name,
+        url,
+      });
+    }
+
+    return this.findOne(id);
   }
 
   async remove(id: number) {

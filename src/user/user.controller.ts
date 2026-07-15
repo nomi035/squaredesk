@@ -19,7 +19,6 @@ import { currentUser } from 'src/decorators/currentuser';
 import { PermissionName } from 'src/permission/entities/permission.entity';
 import { PermissionService } from 'src/permission/permission.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { Role } from './entities/user.entity';
 import { UserService } from './user.service';
 
@@ -161,9 +160,73 @@ export class UserController {
     return this.userService.findOne(+id);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.update(+id, updateUserDto);
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        firstName: { type: 'string' },
+        lastName: { type: 'string' },
+        password: { type: 'string' },
+        email: { type: 'string' },
+        phone: { type: 'string' },
+        address1: { type: 'string' },
+        address2: { type: 'string' },
+        city: { type: 'string' },
+        state: { type: 'string' },
+        zip: { type: 'string' },
+        ptoDays: { type: 'number' },
+        emergencyName: { type: 'string' },
+        emergencyPhone: { type: 'string' },
+        emergencyRelation: { type: 'string' },
+        role: { type: 'string', enum: Object.values(Role) },
+        salaryAmount: { type: 'number' },
+        employeeId: { type: 'string' },
+        bloodGroup: { type: 'string' },
+        department: { type: 'string' },
+        cnicNumber: { type: 'string' },
+        reportsToId: { type: 'number', description: 'Manager user id' },
+        documentNames: {
+          type: 'string',
+          description: 'JSON array or comma-separated names matching documents order',
+          example: '["ID Card","Contract"]',
+        },
+        profilePic: { type: 'string', format: 'binary' },
+        documents: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+        },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'profilePic', maxCount: 1 },
+      { name: 'documents', maxCount: 10 },
+    ]),
+  )
+  async update(
+    @Param('id') id: string,
+    @Body() body: Record<string, string>,
+    @UploadedFiles()
+    files: {
+      profilePic?: Express.Multer.File[];
+      documents?: Express.Multer.File[];
+    },
+  ) {
+    const updateUserDto = this.userService.parseUpdateUserBody(body);
+    const documentNames = this.userService.parseDocumentNames(body.documentNames);
+
+    return this.userService.updateWithFiles(
+      +id,
+      updateUserDto,
+      files.profilePic?.[0],
+      files.documents ?? [],
+      documentNames,
+    );
   }
 
   @Delete(':id')
