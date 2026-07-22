@@ -43,37 +43,73 @@ export class UserService {
     };
   }
 
-  parseUpdateUserBody(body: Record<string, string>): UpdateUserDto {
+  parseUpdateUserBody(body: Record<string, unknown> = {}): UpdateUserDto {
     const dto: UpdateUserDto = {};
 
-    if (body.firstName !== undefined) dto.firstName = body.firstName;
-    if (body.lastName !== undefined) dto.lastName = body.lastName;
-    if (body.password !== undefined) dto.password = body.password;
-    if (body.email !== undefined) dto.email = body.email;
-    if (body.phone !== undefined) dto.phone = body.phone;
-    if (body.address1 !== undefined) dto.address1 = body.address1;
-    if (body.address2 !== undefined) dto.address2 = body.address2;
-    if (body.city !== undefined) dto.city = body.city;
-    if (body.state !== undefined) dto.state = body.state;
-    if (body.zip !== undefined) dto.zip = body.zip;
-    if (body.ptoDays !== undefined) dto.ptoDays = Number(body.ptoDays);
-    if (body.emergencyName !== undefined) dto.emergencyName = body.emergencyName;
-    if (body.emergencyPhone !== undefined) dto.emergencyPhone = body.emergencyPhone;
-    if (body.emergencyRelation !== undefined) {
-      dto.emergencyRelation = body.emergencyRelation;
+    const asString = (value: unknown): string | undefined => {
+      if (value === undefined || value === null) {
+        return undefined;
+      }
+      return String(value);
+    };
+
+    const setString = (key: keyof UpdateUserDto, value: unknown) => {
+      const normalized = asString(value);
+      if (normalized === undefined) {
+        return;
+      }
+      (dto as Record<string, unknown>)[key] =
+        normalized === 'null' || normalized === 'undefined' ? null : normalized;
+    };
+
+    const setNumber = (key: keyof UpdateUserDto, value: unknown) => {
+      const normalized = asString(value);
+      if (
+        normalized === undefined ||
+        normalized === '' ||
+        normalized === 'null' ||
+        normalized === 'undefined'
+      ) {
+        return;
+      }
+      const parsed = Number(normalized);
+      if (Number.isFinite(parsed)) {
+        (dto as Record<string, unknown>)[key] = parsed;
+      }
+    };
+
+    setString('firstName', body.firstName);
+    setString('lastName', body.lastName);
+    setString('password', body.password);
+    setString('email', body.email);
+    setString('phone', body.phone);
+    setString('address1', body.address1);
+    setString('address2', body.address2);
+    setString('city', body.city);
+    setString('state', body.state);
+    setString('zip', body.zip);
+    setNumber('ptoDays', body.ptoDays);
+    setString('emergencyName', body.emergencyName);
+    setString('emergencyPhone', body.emergencyPhone);
+    setString('emergencyRelation', body.emergencyRelation);
+    const role = asString(body.role);
+    if (role !== undefined && role !== '' && role !== 'undefined') {
+      dto.role = role as Role;
     }
-    if (body.role !== undefined) dto.role = body.role as Role;
-    if (body.salaryAmount !== undefined) {
-      dto.salaryAmount = Number(body.salaryAmount);
-    }
-    if (body.employeeId !== undefined) dto.employeeId = body.employeeId;
-    if (body.bloodGroup !== undefined) dto.bloodGroup = body.bloodGroup;
-    if (body.department !== undefined) dto.department = body.department;
-    if (body.cnicNumber !== undefined) dto.cnicNumber = body.cnicNumber;
+    setNumber('salaryAmount', body.salaryAmount);
+    setString('employeeId', body.employeeId);
+    setString('bloodGroup', body.bloodGroup);
+    setString('department', body.department);
+    setString('cnicNumber', body.cnicNumber);
     if (body.reportsToId !== undefined) {
-      dto.reportsToId = body.reportsToId === '' || body.reportsToId === 'null'
-        ? null
-        : Number(body.reportsToId);
+      const reportsToId = asString(body.reportsToId);
+      dto.reportsToId =
+        reportsToId === '' || reportsToId === 'null' || reportsToId === 'undefined'
+          ? null
+          : Number(reportsToId);
+      if (dto.reportsToId !== null && !Number.isFinite(dto.reportsToId as number)) {
+        delete dto.reportsToId;
+      }
     }
 
     return dto;
@@ -305,7 +341,7 @@ export class UserService {
 
     const folderBase = `organizations/${existing.organizationId}/users/${id}`;
 
-    if (profilePic) {
+    if (profilePic?.buffer?.length) {
       if (existing.profilePic) {
         await this.s3Service.deleteFileByUrl(existing.profilePic);
       }
@@ -318,6 +354,9 @@ export class UserService {
 
     for (let index = 0; index < documents.length; index += 1) {
       const file = documents[index];
+      if (!file?.buffer?.length) {
+        continue;
+      }
       const name =
         documentNames[index]?.trim() ||
         file.originalname ||

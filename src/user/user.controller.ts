@@ -210,21 +210,23 @@ export class UserController {
   )
   async update(
     @Param('id') id: string,
-    @Body() body: Record<string, string>,
+    @Body() body: Record<string, unknown>,
     @UploadedFiles()
-    files: {
+    files?: {
       profilePic?: Express.Multer.File[];
       documents?: Express.Multer.File[];
     },
   ) {
     const updateUserDto = this.userService.parseUpdateUserBody(body);
-    const documentNames = this.userService.parseDocumentNames(body.documentNames);
+    const documentNames = this.userService.parseDocumentNames(
+      body.documentNames as string | undefined,
+    );
 
     return this.userService.updateWithFiles(
       +id,
       updateUserDto,
-      files.profilePic?.[0],
-      files.documents ?? [],
+      files?.profilePic?.[0],
+      files?.documents ?? [],
       documentNames,
     );
   }

@@ -31,6 +31,37 @@ export class AdmsService {
     return this.configService.get<string>('ADMS_PUSH_VERSION') ?? '3.1.2';
   }
 
+  /** Comma-separated serials that always mean check-in / check-out. */
+  private parseSerialList(envKey: string, fallback = ''): Set<string> {
+    const raw = this.configService.get<string>(envKey) ?? fallback;
+    return new Set(
+      raw
+        .split(',')
+        .map((sn) => sn.trim())
+        .filter(Boolean),
+    );
+  }
+
+  private resolvePunchStatus(serialNumber: string, deviceStatus: number): number {
+    const checkInSns = this.parseSerialList(
+      'ADMS_CHECKIN_DEVICE_SNS',
+      'NYU7261205204',
+    );
+    const checkOutSns = this.parseSerialList(
+      'ADMS_CHECKOUT_DEVICE_SNS',
+      'NYU7261205195',
+    );
+
+    if (checkInSns.has(serialNumber)) {
+      return 0;
+    }
+    if (checkOutSns.has(serialNumber)) {
+      return 1;
+    }
+
+    return deviceStatus;
+  }
+
   private buildPushServerConfig(device: BiometricDevice): string {
     if (!device.sessionId) {
       device.sessionId = this.generateCode();
@@ -308,10 +339,25 @@ export class AdmsService {
       return true;
     }
 
+    const resolvedStatus = this.resolvePunchStatus(
+      device.serialNumber,
+      status,
+    );
+    const punchKind =
+      resolvedStatus === 0
+        ? 'check-in'
+        : resolvedStatus === 1
+          ? 'check-out'
+          : `status=${resolvedStatus}`;
+
+    this.logger.log(
+      `Punch from SN=${device.serialNumber} PIN=${devicePin} → ${punchKind}`,
+    );
+
     const attendance = await this.attendanceService.recordBiometricPunch(
       user.id,
       punchAt,
-      status,
+      resolvedStatus,
     );
 
     await this.punchLogRepository.save(
@@ -319,7 +365,7 @@ export class AdmsService {
         deviceSn: device.serialNumber,
         devicePin,
         punchTime,
-        status: Number.isNaN(status) ? null : status,
+        status: Number.isNaN(resolvedStatus) ? null : resolvedStatus,
         userId: user.id,
         attendanceId: attendance?.id ?? null,
         result: attendance ? 'processed' : 'skipped',
