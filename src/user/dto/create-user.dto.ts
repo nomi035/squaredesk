@@ -65,5 +65,8 @@ export class CreateUserDto {
   @ApiPropertyOptional({ description: 'User id of the manager this person reports to' })
   reportsToId?: number;
 
+  @ApiPropertyOptional()
+  designation?: string;
+
   organizationId?: number;
 }

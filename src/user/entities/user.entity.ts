@@ -74,6 +74,9 @@ export class User extends BaseEntity {
   profilePic: string;
 
   @Column({ nullable: true })
+  designation: string;
+
+  @Column({ nullable: true })
   reportsToId: number;
 
   @ManyToOne(() => User, (user) => user.directReports, {
