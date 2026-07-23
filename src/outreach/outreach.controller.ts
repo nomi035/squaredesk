@@ -89,12 +89,21 @@ export class OutreachController {
   @Get('graph')
   @ApiQuery({ name: 'startDate', required: false, description: 'Filter from enumeration date (YYYY-MM-DD)' })
   @ApiQuery({ name: 'toDate', required: false, description: 'Filter to enumeration date (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'taxonomy', required: false, description: 'Filter by taxonomy (partial match)' })
+  @ApiQuery({ name: 'disposition', required: false, description: 'Filter by disposition (partial match)' })
+
   getGraphData(
     @currentUser() user: { organization: number },
+    @Query('state') state?: string,
+    @Query('taxonomy') taxonomy?: string,
+    @Query('disposition') disposition?: string,
     @Query('startDate') startDate?: string,
     @Query('toDate') toDate?: string,
   ) {
     return this.outreachService.getGraphData(user.organization, {
+      state,
+      taxonomy,
+      disposition,
       startDate,
       toDate,
     });

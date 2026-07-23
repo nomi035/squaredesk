@@ -253,6 +253,9 @@ export class OutreachService {
 
   private applyGraphDateFilters(
     query: ReturnType<Repository<Outreach>['createQueryBuilder']>,
+    state?: string,
+    taxonomy?: string,
+    disposition?: string,
     startDate?: string,
     toDate?: string,
   ) {
@@ -261,6 +264,24 @@ export class OutreachService {
     }
     if (toDate) {
       query.andWhere('outreach.enumerationDate <= :toDate', { toDate });
+    }
+    if (state) {
+      query.andWhere('UPPER(outreach.state) = :state', {
+        state: state.toUpperCase(),
+      });
+    }
+
+    if (taxonomy) {
+      query.andWhere('outreach.taxonomy ILIKE :taxonomy', {
+        taxonomy: `%${taxonomy}%`,
+      });
+    }
+
+    if (disposition) {
+      query.andWhere(
+        "REPLACE(LOWER(COALESCE(outreach.disposition, '')), ' ', '') LIKE :disposition",
+        { disposition: `%${this.normalizeCompact(disposition)}%` },
+      );
     }
     return query;
   }
@@ -274,7 +295,7 @@ export class OutreachService {
 
   async getGraphData(
     organizationId: number,
-    filters?: { startDate?: string; toDate?: string },
+    filters?: { state?: string; taxonomy?: string; disposition?: string; startDate?: string; toDate?: string },
   ) {
     const startDate = this.parseDateFilter(filters?.startDate);
     const toDate = this.parseDateFilter(filters?.toDate);
