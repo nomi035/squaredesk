@@ -87,6 +87,7 @@ export class OutreachController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Get('graph')
+  @ApiQuery({ name: 'state', required: false, description: 'Filter by state (e.g. CA, NY)' })
   @ApiQuery({ name: 'startDate', required: false, description: 'Filter from enumeration date (YYYY-MM-DD)' })
   @ApiQuery({ name: 'toDate', required: false, description: 'Filter to enumeration date (YYYY-MM-DD)' })
   @ApiQuery({ name: 'taxonomy', required: false, description: 'Filter by taxonomy (partial match)' })

@@ -251,41 +251,6 @@ export class OutreachService {
     };
   }
 
-  private applyGraphDateFilters(
-    query: ReturnType<Repository<Outreach>['createQueryBuilder']>,
-    state?: string,
-    taxonomy?: string,
-    disposition?: string,
-    startDate?: string,
-    toDate?: string,
-  ) {
-    if (startDate) {
-      query.andWhere('outreach.enumerationDate >= :startDate', { startDate });
-    }
-    if (toDate) {
-      query.andWhere('outreach.enumerationDate <= :toDate', { toDate });
-    }
-    if (state) {
-      query.andWhere('UPPER(outreach.state) = :state', {
-        state: state.toUpperCase(),
-      });
-    }
-
-    if (taxonomy) {
-      query.andWhere('outreach.taxonomy ILIKE :taxonomy', {
-        taxonomy: `%${taxonomy}%`,
-      });
-    }
-
-    if (disposition) {
-      query.andWhere(
-        "REPLACE(LOWER(COALESCE(outreach.disposition, '')), ' ', '') LIKE :disposition",
-        { disposition: `%${this.normalizeCompact(disposition)}%` },
-      );
-    }
-    return query;
-  }
-
   private mapGraphRows(rows: Array<{ label: string | null; count: string }>) {
     return rows.map((row) => ({
       label: row.label?.trim() || 'Not Set',
@@ -295,47 +260,38 @@ export class OutreachService {
 
   async getGraphData(
     organizationId: number,
-    filters?: { state?: string; taxonomy?: string; disposition?: string; startDate?: string; toDate?: string },
+    filters?: {
+      state?: string;
+      taxonomy?: string;
+      disposition?: string;
+      startDate?: string;
+      toDate?: string;
+    },
   ) {
-    const startDate = this.parseDateFilter(filters?.startDate);
-    const toDate = this.parseDateFilter(filters?.toDate);
-
-    const taxonomyQuery = this.outreachRepository
-      .createQueryBuilder('outreach')
+    const taxonomyQuery = this.buildFilteredQuery(organizationId, filters)
       .select('outreach.taxonomy', 'label')
       .addSelect('COUNT(*)', 'count')
-      .where('outreach.organizationId = :organizationId', { organizationId });
-    this.applyGraphDateFilters(taxonomyQuery, startDate, toDate);
+      .groupBy('outreach.taxonomy')
+      .orderBy('count', 'DESC');
 
-    const stateQuery = this.outreachRepository
-      .createQueryBuilder('outreach')
+    const stateQuery = this.buildFilteredQuery(organizationId, filters)
       .select('outreach.state', 'label')
       .addSelect('COUNT(*)', 'count')
-      .where('outreach.organizationId = :organizationId', { organizationId });
-    this.applyGraphDateFilters(stateQuery, startDate, toDate);
+      .groupBy('outreach.state')
+      .orderBy('count', 'DESC');
 
-    const dispositionQuery = this.outreachRepository
-      .createQueryBuilder('outreach')
+    const dispositionQuery = this.buildFilteredQuery(organizationId, filters)
       .select('outreach.disposition', 'label')
       .addSelect('COUNT(*)', 'count')
-      .where('outreach.organizationId = :organizationId', { organizationId });
-    this.applyGraphDateFilters(dispositionQuery, startDate, toDate);
+      .groupBy('outreach.disposition')
+      .orderBy('count', 'DESC');
 
-    const totalQuery = this.outreachRepository
-      .createQueryBuilder('outreach')
-      .where('outreach.organizationId = :organizationId', { organizationId });
-    this.applyGraphDateFilters(totalQuery, startDate, toDate);
+    const totalQuery = this.buildFilteredQuery(organizationId, filters);
 
     const [taxonomies, states, dispositions, total] = await Promise.all([
-      taxonomyQuery
-        .groupBy('outreach.taxonomy')
-        .orderBy('count', 'DESC')
-        .getRawMany(),
-      stateQuery.groupBy('outreach.state').orderBy('count', 'DESC').getRawMany(),
-      dispositionQuery
-        .groupBy('outreach.disposition')
-        .orderBy('count', 'DESC')
-        .getRawMany(),
+      taxonomyQuery.getRawMany(),
+      stateQuery.getRawMany(),
+      dispositionQuery.getRawMany(),
       totalQuery.getCount(),
     ]);
 
