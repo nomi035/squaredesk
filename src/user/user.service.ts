@@ -40,6 +40,7 @@ export class UserService {
       department: body.department,
       cnicNumber: body.cnicNumber,
       reportsToId: body.reportsToId ? Number(body.reportsToId) : undefined,
+      designation: body.designation,
     };
   }
 

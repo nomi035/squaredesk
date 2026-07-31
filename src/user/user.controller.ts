@@ -61,6 +61,7 @@ export class UserController {
         department: { type: 'string' },
         cnicNumber: { type: 'string' },
         reportsToId: { type: 'number', description: 'Manager user id' },
+        designation: { type: 'string' },
         documentNames: {
           type: 'string',
           description: 'JSON array or comma-separated names matching documents order',
