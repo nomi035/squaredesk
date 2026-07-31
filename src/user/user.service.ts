@@ -62,6 +62,22 @@ export class UserService {
         normalized === 'null' || normalized === 'undefined' ? null : normalized;
     };
 
+    const setBoolean = (key: keyof UpdateUserDto, value: unknown) => {
+      if (value === undefined) {
+        return;
+      }
+      if (typeof value === 'boolean') {
+        (dto as Record<string, unknown>)[key] = value;
+        return;
+      }
+      const normalized = asString(value)?.trim().toLowerCase();
+      if (normalized === 'true') {
+        (dto as Record<string, unknown>)[key] = true;
+      } else if (normalized === 'false') {
+        (dto as Record<string, unknown>)[key] = false;
+      }
+    };
+
     const setNumber = (key: keyof UpdateUserDto, value: unknown) => {
       const normalized = asString(value);
       if (
@@ -101,6 +117,8 @@ export class UserService {
     setString('bloodGroup', body.bloodGroup);
     setString('department', body.department);
     setString('cnicNumber', body.cnicNumber);
+    setString('designation', body.designation);
+    setBoolean('isActive', body.isActive);
     if (body.reportsToId !== undefined) {
       const reportsToId = asString(body.reportsToId);
       dto.reportsToId =
@@ -231,7 +249,7 @@ export class UserService {
           id: organizationId,
         },
       },
-      relations: ['documents'],
+      relations: ['documents','reportsTo'],
     });
   }
 
@@ -386,5 +404,21 @@ export class UserService {
       }
     }
     return this.usersRepository.delete(id);
+  }
+
+  async removeDocument(userId: number, documentId: number) {
+    const document = await this.userDocumentRepository.findOne({
+      where: { id: documentId, userId },
+    });
+    if (!document) {
+      throw new NotFoundException(
+        `Document ${documentId} not found for user ${userId}`,
+      );
+    }
+
+    await this.s3Service.deleteFileByUrl(document.url);
+    await this.userDocumentRepository.delete(documentId);
+
+    return this.findOne(userId);
   }
 }

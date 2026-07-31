@@ -189,6 +189,8 @@ export class UserController {
         department: { type: 'string' },
         cnicNumber: { type: 'string' },
         reportsToId: { type: 'number', description: 'Manager user id' },
+        designation: { type: 'string' },
+        isActive: { type: 'boolean' },
         documentNames: {
           type: 'string',
           description: 'JSON array or comma-separated names matching documents order',
@@ -229,6 +231,16 @@ export class UserController {
       files?.documents ?? [],
       documentNames,
     );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Delete(':id/documents/:documentId')
+  removeDocument(
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+  ) {
+    return this.userService.removeDocument(+id, +documentId);
   }
 
   @Delete(':id')

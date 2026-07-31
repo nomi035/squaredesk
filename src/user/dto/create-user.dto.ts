@@ -68,5 +68,8 @@ export class CreateUserDto {
   @ApiPropertyOptional()
   designation?: string;
 
+  @ApiPropertyOptional()
+  isActive?: boolean;
+
   organizationId?: number;
 }
