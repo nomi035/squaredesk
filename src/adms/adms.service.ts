@@ -11,6 +11,10 @@ import { DevicePunchLog } from './entities/device-punch-log.entity';
 @Injectable()
 export class AdmsService {
   private readonly logger = new Logger(AdmsService.name);
+  private readonly deviceCache = new Map<
+    string,
+    { device: BiometricDevice; cachedAt: number }
+  >();
 
   constructor(
     private readonly configService: ConfigService,
@@ -29,6 +33,21 @@ export class AdmsService {
 
   private getPushVersion(): string {
     return this.configService.get<string>('ADMS_PUSH_VERSION') ?? '3.1.2';
+  }
+
+  /** How long a touched device is served from memory before hitting the DB again. */
+  private getTouchThrottleMs(): number {
+    const raw = Number(
+      this.configService.get<string>('ADMS_TOUCH_THROTTLE_MS'),
+    );
+    return Number.isFinite(raw) && raw > 0 ? raw : 60_000;
+  }
+
+  private cacheDevice(device: BiometricDevice) {
+    this.deviceCache.set(device.serialNumber, {
+      device,
+      cachedAt: Date.now(),
+    });
   }
 
   /** Comma-separated serials that always mean check-in / check-out. */
@@ -147,6 +166,11 @@ export class AdmsService {
       return null;
     }
 
+    const cached = this.deviceCache.get(serialNumber);
+    if (cached && Date.now() - cached.cachedAt < this.getTouchThrottleMs()) {
+      return cached.device;
+    }
+
     try {
       let device = await this.deviceRepository.findOne({
         where: { serialNumber },
@@ -180,7 +204,9 @@ export class AdmsService {
       }
 
       device.lastSeenAt = new Date();
-      return this.deviceRepository.save(device);
+      device = await this.deviceRepository.save(device);
+      this.cacheDevice(device);
+      return device;
     } catch (error) {
       this.logger.error(
         `Failed to touch device ${serialNumber}: ${error?.message ?? error}`,
@@ -427,19 +453,23 @@ export class AdmsService {
       where: { serialNumber },
     });
 
+    let device: BiometricDevice;
     if (existing) {
       existing.organizationId = organizationId;
       existing.name = name ?? existing.name;
-      return this.deviceRepository.save(existing);
+      device = await this.deviceRepository.save(existing);
+    } else {
+      device = await this.deviceRepository.save(
+        this.deviceRepository.create({
+          serialNumber,
+          organizationId,
+          name: name ?? `Device ${serialNumber}`,
+        }),
+      );
     }
 
-    return this.deviceRepository.save(
-      this.deviceRepository.create({
-        serialNumber,
-        organizationId,
-        name: name ?? `Device ${serialNumber}`,
-      }),
-    );
+    this.cacheDevice(device);
+    return device;
   }
 
   listDevices() {
