@@ -12,7 +12,7 @@ export class Shift extends BaseEntity {
     endTime: string;
 
     @Column()
-    endDate: Date;
+    startTime: string;
 
     @OneToMany(() => User, (user) => user.shift)
     users: User[];
