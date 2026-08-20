@@ -1,15 +1,16 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { IsOptional } from "class-validator";
 
 export class CreateShiftDto {
+    @IsOptional()
     @ApiProperty()
-    startDate: Date;
+    name?: string;
     @ApiProperty()
     startTime: string;
     @ApiProperty()
     endTime: string;
-    @ApiProperty()
-    endDate: Date;
+  
 
-    organizationId: number;
+    organizationId?: number;
 
 }

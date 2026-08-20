@@ -9,12 +9,6 @@ export class Shift extends BaseEntity {
     name: string;
 
     @Column()
-    startDate: Date;
-
-    @Column()
-    startTime: string;
-
-    @Column()
     endTime: string;
 
     @Column()

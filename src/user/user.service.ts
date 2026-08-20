@@ -250,7 +250,7 @@ export class UserService {
           id: organizationId,
         },
       },
-      relations: ['documents','reportsTo'],
+      relations: ['documents','reportsTo','shift'],
     });
   }
 
