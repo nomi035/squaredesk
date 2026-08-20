@@ -3,6 +3,7 @@ import { Department } from 'src/department/entities/department.entity';
 import { Designation } from 'src/designation/entities/designation.entity';
 import { Office } from 'src/office/entities/office.entity';
 import { Organization } from 'src/organizations/entities/organization.entity';
+import { Shift } from 'src/shift/entities/shift.entity';
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
 import { UserDocument } from './user-document.entity';
 
@@ -91,6 +92,16 @@ export class User extends BaseEntity {
 
   @OneToMany(() => UserDocument, (document) => document.user, { cascade: true })
   documents: UserDocument[];
+
+  @Column({ nullable: true })
+  shiftId: number;
+
+  @ManyToOne(() => Shift, (shift) => shift.users, {
+    onDelete: 'SET NULL',
+    nullable: true,
+  })
+  @JoinColumn({ name: 'shiftId' })
+  shift: Shift;
 }
 
 export enum Role {

@@ -1,37 +1,32 @@
 import { BaseEntity } from "base.entity";
-import { Assignment } from "src/assignments/entities/assignment.entity";
-import { Office } from "src/office/entities/office.entity";
+import { Organization } from "src/organizations/entities/organization.entity";
 import { User } from "src/user/entities/user.entity";
-import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from "typeorm";
+
 @Entity('shifts')
 export class Shift extends BaseEntity {
+    @Column({ nullable: true })
+    name: string;
+
     @Column()
     startDate: Date;
-    @Column()
-    startTime:string;
-    @Column()
-    endTime:string;
-    @Column()
-    endDate:Date;
-    @Column()
-    employeeId:number;
-    @ManyToOne(() => User, {onDelete:'CASCADE'})
-    @JoinColumn({name:'employeeId'})
-    employee: User;
-     @Column()
-    officeId:number;
-    @ManyToOne(() => Office, {onDelete:'CASCADE'})
-    @JoinColumn({name:'officeId'})
-    office: Office;
-    @Column()
-    assignmentId:number;
-     @ManyToOne(() => Assignment, {onDelete:'CASCADE'})
-    @JoinColumn({name:'assignmentId'})
-    assignment: Assignment;
-   @Column({ nullable: true })
-   providerId:number
-    @ManyToOne(() => User, {onDelete:'CASCADE'})
-    @JoinColumn({name:'providerId'})
-    provider: User;
 
+    @Column()
+    startTime: string;
+
+    @Column()
+    endTime: string;
+
+    @Column()
+    endDate: Date;
+
+    @OneToMany(() => User, (user) => user.shift)
+    users: User[];
+
+    @Column({ nullable: true })
+    organizationId: number;
+
+    @ManyToOne(() => Organization, { nullable: true, onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'organizationId' })
+    organization: Organization;
 }

@@ -9,17 +9,7 @@ export class CreateShiftDto {
     endTime: string;
     @ApiProperty()
     endDate: Date;
-    @ApiProperty()
-    employeeId: number;
-    @ApiProperty()
-    officeId: number;
-    @ApiProperty()
-    assignmentId: number;
-    @ApiProperty()
-     providerId:number
-    @ApiProperty({
-    required: false
-    })
-    providerName?: string;
+
+    organizationId: number;
 
 }
