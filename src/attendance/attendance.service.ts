@@ -314,7 +314,7 @@ async getWeekAndMonthDuration(employeeId: number) {
       'a.duration',
     ])
     .where('a.employeeId = :employeeId', { employeeId })
-   
+
     .andWhere(
       `(a.checkinDate >= ${weekStart} OR a.checkinDate >= ${monthStart})`,
     )
@@ -322,14 +322,20 @@ async getWeekAndMonthDuration(employeeId: number) {
 console.log("attendances",attendances)
   // Now calculate manually
   const now = new Date();
+  const todayStartJs = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const weekStartJs = startOfWeek(now);
   const monthStartJs = startOfMonth(now);
 
+  let todayTotal = 0;
   let weekTotal = 0;
   let monthTotal = 0;
 
   for (const attendance of attendances) {
     const checkin = new Date(attendance.checkinDate);
+
+    if (checkin >= todayStartJs) {
+      todayTotal += attendance.duration;
+    }
 
     if (checkin >= weekStartJs) {
       weekTotal += attendance.duration;
@@ -339,9 +345,11 @@ console.log("attendances",attendances)
       monthTotal += attendance.duration;
     }
   }
+console.log("todayTotal",todayTotal)
 console.log("weekTotal",weekTotal)
 console.log("monthTotal",monthTotal)
   return {
+    currentDay: Number(todayTotal.toFixed(2)),
     currentWeek: Number(weekTotal.toFixed(2)),
     currentMonth: Number(monthTotal.toFixed(2)),
   };
@@ -421,6 +429,61 @@ async getAdminMonthHours(officeId:number){
   }
 
   return result;
+}
+
+async getTodayAndMonthStats(organizationId: number) {
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setHours(23, 59, 59, 999);
+  const startOfWeekJs = startOfWeek(now);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const todayAttendances = await this.attendanceRepository
+    .createQueryBuilder('a')
+    .innerJoin('a.employee', 'e')
+    .select(['a.employeeId', 'a.duration'])
+    .where('e.organizationId = :organizationId', { organizationId })
+    .andWhere('a.checkinDate BETWEEN :startOfDay AND :endOfDay', {
+      startOfDay,
+      endOfDay,
+    })
+    .getMany();
+
+  const todayTotalMinutes = todayAttendances.reduce(
+    (sum, a) => sum + (a.duration || 0),
+    0,
+  );
+  const todayEmployeeCount = new Set(
+    todayAttendances.map((a) => a.employeeId),
+  ).size;
+
+  const weekResult = await this.attendanceRepository
+    .createQueryBuilder('a')
+    .innerJoin('a.employee', 'e')
+    .select('SUM(a.duration)', 'total')
+    .where('e.organizationId = :organizationId', { organizationId })
+    .andWhere('a.checkinDate >= :startOfWeekJs', { startOfWeekJs })
+    .getRawOne();
+
+  const weekTotalMinutes = Number(weekResult?.total) || 0;
+
+  const monthResult = await this.attendanceRepository
+    .createQueryBuilder('a')
+    .innerJoin('a.employee', 'e')
+    .select('SUM(a.duration)', 'total')
+    .where('e.organizationId = :organizationId', { organizationId })
+    .andWhere('a.checkinDate >= :startOfMonth', { startOfMonth })
+    .getRawOne();
+
+  const monthTotalMinutes = Number(monthResult?.total) || 0;
+
+  return {
+    todayTotalHours: Number((todayTotalMinutes / 60).toFixed(2)),
+    todayEmployeeCount,
+    weekTotalHours: Number((weekTotalMinutes / 60).toFixed(2)),
+    monthTotalHours: Number((monthTotalMinutes / 60).toFixed(2)),
+  };
 }
 
   toDateOnly(date: Date): Date {

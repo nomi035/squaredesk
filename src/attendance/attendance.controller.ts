@@ -196,6 +196,13 @@ getAttendanceRangeOffice(
     return this.attendanceService.getAdminMonthHours(user.organization);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('/admin/stats/today')
+  async getAdminTodayStats(@currentUser() user: any) {
+    return this.attendanceService.getTodayAndMonthStats(user.organization);
+  }
+
   async time12ToMinutes(time: string): Promise<number> {
     const [hh, mm, period] = time.split(':');
 
