@@ -30,10 +30,10 @@ import { AdmsModule } from './adms/adms.module';
     port: Number(process.env.DB_PORT),
   
     autoLoadEntities: true,
-    synchronize:true,  
-    //  ssl: {
-    //  rejectUnauthorized: false,
-    //  },
+    //synchronize:true,  
+     ssl: {
+     rejectUnauthorized: false,
+     },
   }),
      AuthModule,
      OfficeModule,
