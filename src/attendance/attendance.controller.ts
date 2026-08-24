@@ -27,8 +27,8 @@ export class AttendanceController {
   @UseGuards(JwtAuthGuard)
   @Post(':checkInDate/checkin/:startTime')
   async checkIn(@currentUser() user: any, @Param('startTime') startTime: string, @Param('checkInDate') checkInDate: Date) {
-    const attendance = await this.attendanceService.getTodayAttendance(user.userId);
-    if (attendance) { // if attendance already exists for today, update it
+    const attendances = await this.attendanceService.getTodayAttendance(user.userId);
+    if (attendances.length > 0) { // if attendance already exists for today, update it
       throw new BadRequestException('Attendance already checked in for today');
     }
 
@@ -148,18 +148,16 @@ getAttendanceRangeOffice(
   @UseGuards(JwtAuthGuard)
   @Get('/status/today')
   async getTodayAttendanceStatus(@currentUser() user: any) {
-    const attendance = await this.attendanceService.getTodayAttendance(user.userId);
-    if (attendance?.checkinDate && attendance?.checkoutDate === null) {
-      return { status: 'Checked In', attendance: attendance };
-
-    }
-    else if (attendance?.checkinDate && attendance?.checkoutDate ) {
-
-      return { status: "Checked Out", attendance: attendance };
-    }
-    else if (!attendance) {
+    const attendances = await this.attendanceService.getTodayAttendance(user.userId);
+    if (!attendances.length) {
       return { status: 'Not Checked In' };
     }
+
+    const openAttendance = attendances.find((a) => a.checkoutDate === null);
+    const attendance = openAttendance ?? attendances[attendances.length - 1];
+    const status = attendance.checkoutDate === null ? 'Checked In' : 'Checked Out';
+
+    return { status, attendance };
   }
 
   @ApiBearerAuth()  

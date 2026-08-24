@@ -66,12 +66,11 @@ export class AttendanceService {
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    return this.attendanceRepository.findOne({
+    return this.attendanceRepository.find({
       where: {
         createdAt: Between(startOfDay, endOfDay),
         employeeId: employeeId,
       },
-      relations: ['breaks'],
     });
   }
 
