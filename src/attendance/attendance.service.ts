@@ -105,7 +105,7 @@ export class AttendanceService {
           organizationId: id
         }
       },
-      relations: ['breaks'],
+      relations: ['employee'],
     });
   }
    async getTodayAttendanceWithoutBreaks(employeeId: number) {
