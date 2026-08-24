@@ -349,9 +349,9 @@ console.log("todayTotal",todayTotal)
 console.log("weekTotal",weekTotal)
 console.log("monthTotal",monthTotal)
   return {
-    currentDay: Number(todayTotal.toFixed(2)),
-    currentWeek: Number(weekTotal.toFixed(2)),
-    currentMonth: Number(monthTotal.toFixed(2)),
+    currentDay: Number((todayTotal / 60).toFixed(2)),
+    currentWeek: Number((weekTotal / 60).toFixed(2)),
+    currentMonth: Number((monthTotal / 60).toFixed(2)),
   };
 }
 
