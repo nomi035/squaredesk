@@ -157,7 +157,7 @@ getAttendanceRangeOffice(
     const attendance = openAttendance ?? attendances[attendances.length - 1];
     const status = attendance.checkoutDate === null ? 'Checked In' : 'Checked Out';
 
-    return { status, attendance };
+    return { status, attendances };
   }
 
   @ApiBearerAuth()  
