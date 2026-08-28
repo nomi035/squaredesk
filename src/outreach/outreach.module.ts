@@ -3,11 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from 'src/user/entities/user.entity';
 import { OutreachComment } from './entities/outreach-comment.entity';
 import { Outreach } from './entities/outreach.entity';
+import { ProviderFile } from './entities/provider-file.entity';
 import { OutreachController } from './outreach.controller';
 import { OutreachService } from './outreach.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Outreach, OutreachComment, User])],
+  imports: [TypeOrmModule.forFeature([Outreach, OutreachComment, ProviderFile, User])],
   controllers: [OutreachController],
   providers: [OutreachService],
 })

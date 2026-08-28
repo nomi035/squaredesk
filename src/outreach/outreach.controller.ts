@@ -22,7 +22,7 @@ import { OutreachService } from './outreach.service';
 @ApiTags('outreach')
 @Controller('outreach')
 export class OutreachController {
-  constructor(private readonly outreachService: OutreachService) {}
+  constructor(private readonly outreachService: OutreachService) { }
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -48,9 +48,38 @@ export class OutreachController {
   @UseInterceptors(FileInterceptor('file'))
   importUpload(
     @UploadedFile() file: Express.Multer.File,
+    @Body('employeeId') employeeIdStr: string,
+    @currentUser() user: { organization: number; userId: number },
+  ) {
+    const assignedToId = employeeIdStr ? parseInt(employeeIdStr, 10) : user.userId;
+    return this.outreachService.importFromContent(
+      file.buffer.toString('utf-8'),
+      user.organization,
+      user.userId,
+      assignedToId,
+      file.originalname,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get('files')
+  findAllFiles(
+    @currentUser() user: { organization: number; userId: number; role: string },
+    @Query('all') all?: string,
+  ) {
+    const fetchUserId = (['admin', 'manager'].includes(user.role?.toLowerCase()) && all === 'true') || user.role?.toLowerCase() === 'admin' ? undefined : user.userId;
+    return this.outreachService.findAllFiles(user.organization, fetchUserId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Delete('files/:id')
+  removeFile(
+    @Param('id') id: string,
     @currentUser() user: { organization: number },
   ) {
-    return this.outreachService.importFromContent(file.buffer.toString('utf-8'), user.organization);
+    return this.outreachService.removeFile(Number(id), user.organization);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -63,8 +92,10 @@ export class OutreachController {
   @ApiQuery({ name: 'toDate', required: false, description: 'Filter to enumeration date (YYYY-MM-DD)' })
   @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, description: 'Items per page (default: 20, max: 100)' })
+  @ApiQuery({ name: 'providerFileId', required: false, description: 'Filter by file' })
   findAll(
     @currentUser() user: { organization: number },
+    @Query('providerFileId') providerFileId?: string,
     @Query('state') state?: string,
     @Query('taxonomy') taxonomy?: string,
     @Query('disposition') disposition?: string,
@@ -74,6 +105,7 @@ export class OutreachController {
     @Query('limit') limit?: string,
   ) {
     return this.outreachService.findAll(user.organization, {
+      providerFileId: providerFileId ? Number(providerFileId) : undefined,
       state,
       taxonomy,
       disposition,
@@ -93,8 +125,10 @@ export class OutreachController {
   @ApiQuery({ name: 'taxonomy', required: false, description: 'Filter by taxonomy (partial match)' })
   @ApiQuery({ name: 'disposition', required: false, description: 'Filter by disposition (partial match)' })
 
+  @ApiQuery({ name: 'providerFileId', required: false, description: 'Filter by file' })
   getGraphData(
     @currentUser() user: { organization: number },
+    @Query('providerFileId') providerFileId?: string,
     @Query('state') state?: string,
     @Query('taxonomy') taxonomy?: string,
     @Query('disposition') disposition?: string,
@@ -102,6 +136,7 @@ export class OutreachController {
     @Query('toDate') toDate?: string,
   ) {
     return this.outreachService.getGraphData(user.organization, {
+      providerFileId: providerFileId ? Number(providerFileId) : undefined,
       state,
       taxonomy,
       disposition,

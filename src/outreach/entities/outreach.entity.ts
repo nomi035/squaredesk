@@ -1,6 +1,8 @@
 import { BaseEntity } from 'base.entity';
-import { Column, Entity, OneToMany } from 'typeorm';
+import { Column, Entity, ManyToOne, OneToMany } from 'typeorm';
 import { OutreachComment } from './outreach-comment.entity';
+
+import { ProviderFile } from './provider-file.entity';
 
 @Entity('Outreach')
 export class Outreach extends BaseEntity {
@@ -51,6 +53,15 @@ export class Outreach extends BaseEntity {
 
   @Column({ nullable: true })
   organizationId: number;
+
+  @ManyToOne(() => ProviderFile, (file) => file.outreachRecords, { onDelete: 'CASCADE' })
+  providerFile: ProviderFile;
+
+  @Column({ nullable: true })
+  providerFileId: number;
+
+  @Column({ type: 'jsonb', nullable: true })
+  additionalData: Record<string, any>;
 
   @OneToMany(() => OutreachComment, (comment) => comment.outreach, {
     cascade: true,

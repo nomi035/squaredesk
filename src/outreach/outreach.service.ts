@@ -19,12 +19,14 @@ type PsychiatryCsvRow = {
   State: string;
   'Postal Code': string;
   'Practice Phone': string;
-  'Auth First': string;
-  'Auth Last': string;
-  'Auth Phone': string;
+  'Authorized First Name': string;
+  'Authorized Last Name': string;
+  'Authorized Phone': string;
   Disposition: string;
-  Comments: string;
-};
+  Comment: string;
+} & Record<string, any>;
+
+import { ProviderFile } from './entities/provider-file.entity';
 
 @Injectable()
 export class OutreachService {
@@ -33,6 +35,8 @@ export class OutreachService {
     private readonly outreachRepository: Repository<Outreach>,
     @InjectRepository(OutreachComment)
     private readonly outreachCommentRepository: Repository<OutreachComment>,
+    @InjectRepository(ProviderFile)
+    private readonly providerFileRepository: Repository<ProviderFile>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
@@ -41,6 +45,16 @@ export class OutreachService {
     if (!value?.trim()) {
       return null;
     }
+    
+    // Handle YYYY-MM-DD (ISO format from frontend normalization)
+    if (value.includes('-')) {
+      const [year, month, day] = value.split('-').map(Number);
+      if (year && month && day) {
+        return new Date(year, month - 1, day);
+      }
+    }
+    
+    // Handle MM/DD/YYYY
     const [month, day, year] = value.split('/').map((part) => Number(part));
     if (!month || !day || !year) {
       return null;
@@ -49,22 +63,40 @@ export class OutreachService {
   }
 
   private mapCsvRow(row: PsychiatryCsvRow): Partial<Outreach> {
+    const {
+      NPI,
+      Name,
+      'Enumeration Date': enumerationDate,
+      Taxonomy,
+      City,
+      State,
+      'Postal Code': postalCode,
+      'Practice Phone': practicePhone,
+      'Authorized First Name': authFirst,
+      'Authorized Last Name': authLast,
+      'Authorized Phone': authPhone,
+      Disposition,
+      Comment,
+      ...additionalData
+    } = row;
+
     return {
-      npi: row.NPI?.trim() ?? '',
-      name: row.Name?.trim() ?? '',
-      enumerationDate: this.parseEnumerationDate(row['Enumeration Date']),
-      taxonomy: row.Taxonomy?.trim() || null,
-      city: row.City?.trim() || null,
-      state: row.State?.trim() || null,
-      postalCode: row['Postal Code']?.trim() || null,
-      practicePhone: row['Practice Phone']?.trim() || null,
-      authFirst: row['Auth First']?.trim() || null,
-      authLast: row['Auth Last']?.trim() || null,
-      authPhone: row['Auth Phone']?.trim() || null,
-      disposition: row.Disposition?.trim() || null,
-      csvComments: row.Comments?.trim() || null,
+      npi: NPI?.trim() ?? '',
+      name: Name?.trim() ?? '',
+      enumerationDate: this.parseEnumerationDate(enumerationDate),
+      taxonomy: Taxonomy?.trim() || null,
+      city: City?.trim() || null,
+      state: State?.trim() || null,
+      postalCode: postalCode?.trim() || null,
+      practicePhone: practicePhone?.trim() || null,
+      authFirst: authFirst?.trim() || null,
+      authLast: authLast?.trim() || null,
+      authPhone: authPhone?.trim() || null,
+      disposition: Disposition?.trim() || null,
+      csvComments: Comment?.trim() || null,
       comment: null,
       status: 'pending',
+      additionalData,
     };
   }
 
@@ -91,15 +123,25 @@ export class OutreachService {
     return this.importFromContent(content, organizationId);
   }
 
-  async importFromContent(content: string, organizationId?: number) {
+  async importFromContent(content: string, organizationId?: number, userId?: number, assignedToId?: number, fileName?: string) {
+    const providerFile = this.providerFileRepository.create({
+      fileName: fileName || 'Legacy Upload',
+      organizationId,
+      uploadedById: userId,
+      assignedToId: assignedToId || userId,
+    });
+    const savedFile = await this.providerFileRepository.save(providerFile);
+
     const records = this.parseCsvContent(content).map((record) => ({
       ...record,
       organizationId,
+      providerFileId: savedFile.id,
     }));
     const saved = await this.outreachRepository.save(records);
     return {
-      inserted: saved.length,
-      records: saved,
+      message: 'Successfully imported records',
+      count: saved.length,
+      fileId: savedFile.id,
     };
   }
 
@@ -142,6 +184,7 @@ export class OutreachService {
   private buildFilteredQuery(
     organizationId: number,
     filters?: {
+      providerFileId?: number;
       state?: string;
       taxonomy?: string;
       disposition?: string;
@@ -149,6 +192,7 @@ export class OutreachService {
       toDate?: string;
     },
   ) {
+    const providerFileId = filters?.providerFileId;
     const state = this.normalizeFilter(filters?.state);
     const taxonomy = this.normalizeFilter(filters?.taxonomy);
     const disposition = this.normalizeFilter(filters?.disposition);
@@ -162,6 +206,12 @@ export class OutreachService {
     if (state) {
       query.andWhere('UPPER(outreach.state) = :state', {
         state: state.toUpperCase(),
+      });
+    }
+
+    if (providerFileId) {
+      query.andWhere('outreach.providerFileId = :providerFileId', {
+        providerFileId,
       });
     }
 
@@ -192,6 +242,7 @@ export class OutreachService {
   async findAll(
     organizationId: number,
     filters?: {
+      providerFileId?: number;
       state?: string;
       taxonomy?: string;
       disposition?: string;
@@ -261,6 +312,7 @@ export class OutreachService {
   async getGraphData(
     organizationId: number,
     filters?: {
+      providerFileId?: number;
       state?: string;
       taxonomy?: string;
       disposition?: string;
@@ -378,6 +430,33 @@ export class OutreachService {
         profilePic: comment.commentedBy.profilePic,
       },
     };
+  }
+
+  async findAllFiles(organizationId: number, userId?: number) {
+    const query = this.providerFileRepository
+      .createQueryBuilder('file')
+      .leftJoinAndSelect('file.uploadedBy', 'uploadedBy')
+      .leftJoinAndSelect('file.assignedTo', 'assignedTo')
+      .where('file.organizationId = :organizationId', { organizationId });
+
+    if (userId) {
+      query.andWhere('(file.uploadedById = :userId OR file.assignedToId = :userId)', { userId });
+    }
+
+    return query.orderBy('file.createdAt', 'DESC').getMany();
+  }
+
+  async removeFile(id: number, organizationId: number) {
+    const file = await this.providerFileRepository.findOne({
+      where: { id, organizationId }
+    });
+    if (!file) {
+      throw new NotFoundException(`File ${id} not found`);
+    }
+    // Using delete on Outreach directly to cascade if DB cascade is flaky, but typeorm cascade true on entity should handle it if we use remove.
+    await this.outreachRepository.delete({ providerFileId: id });
+    await this.providerFileRepository.delete(id);
+    return { deleted: true };
   }
 
   async removeAllByOrganization(organizationId: number) {
