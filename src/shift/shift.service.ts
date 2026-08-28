@@ -63,12 +63,10 @@ export class ShiftService {
     }
 
     const employee = await this.userRepository.findOne({
-      where: { id: employeeId, organizationId: shift.organizationId },
+      where: { id: employeeId },
     });
     if (!employee) {
-      throw new BadRequestException(
-        'Employee must belong to the same organization as the shift',
-      );
+      throw new BadRequestException('Employee not found');
     }
 
     await this.userRepository.update(employeeId, { shiftId: id });

@@ -3,6 +3,7 @@ import { CreateBreakDto } from './dto/create-break.dto';
 import { UpdateBreakDto } from './dto/update-break.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm/repository/Repository';
+import { IsNull } from 'typeorm';
 import { Break } from './entities/break.entity';
 import { Attendance } from 'src/attendance/entities/attendance.entity';
 
@@ -12,12 +13,16 @@ export class BreakService {
 
   }
 
-  create(createBreakDto: CreateBreakDto, attendance:Attendance) {
-    return this.breakRepository.save({...createBreakDto, attendance});
+  create(createBreakDto: CreateBreakDto, attendance?: Attendance) {
+    return this.breakRepository.save(attendance ? {...createBreakDto, attendance} : createBreakDto);
   }
 
   findAll() {
     return this.breakRepository.find();
+  }
+
+  findGlobalBreaks() {
+    return this.breakRepository.find({ where: { attendance: IsNull() } });
   }
 
   findOne(id: number) {

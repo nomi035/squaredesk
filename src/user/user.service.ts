@@ -242,26 +242,72 @@ export class UserService {
     return this.usersRepository.find({ relations: ['documents'] });
   }
 
-  async findAllByOrganization(role: Role, organizationId: number) {
-    return this.usersRepository.find({
+  async findAllByOrganization(
+    role: Role,
+    organizationId: number,
+    includeInactive?: boolean,
+    page?: number,
+    limit?: number
+  ) {
+    const query = {
       where: {
         role,
+        ...(includeInactive ? {} : { isActive: true }),
         organization: {
           id: organizationId,
         },
       },
-      relations: ['documents','reportsTo','shift'],
-    });
+      relations: ['documents', 'reportsTo', 'shift'],
+      order: { createdAt: 'DESC' as const }
+    };
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      const [data, total] = await this.usersRepository.findAndCount({ ...query, skip, take: limit });
+      return {
+        data,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit) || 0,
+      };
+    }
+
+    const data = await this.usersRepository.find(query);
+    return data;
   }
 
-  async findAllByOffice(role: Role, officeId: number) {
-    return this.usersRepository.findAndCount({
+  async findAllByOffice(
+    role: Role,
+    officeId: number,
+    includeInactive?: boolean,
+    page?: number,
+    limit?: number
+  ) {
+    const query = {
       where: {
         role,
+        ...(includeInactive ? {} : { isActive: true }),
         organizationId: officeId,
       },
       relations: ['documents'],
-    });
+      order: { createdAt: 'DESC' as const }
+    };
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      const [data, total] = await this.usersRepository.findAndCount({ ...query, skip, take: limit });
+      return {
+        data,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit) || 0,
+      };
+    }
+
+    const data = await this.usersRepository.findAndCount(query);
+    return data;
   }
 
   async findByEmail(email: string) {

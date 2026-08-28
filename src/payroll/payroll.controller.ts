@@ -42,11 +42,18 @@ export class PayrollController {
   @ApiBearerAuth()
   @Get()
   @ApiQuery({ name: 'month', required: false, description: 'YYYY-MM filter' })
+  @ApiQuery({ name: 'page', required: false, description: 'Page number' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Items per page' })
   findAll(
     @currentUser() user: { organization: number },
     @Query('month') month?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.payrollService.findAll(user.organization, month);
+    const targetMonth = month ?? this.payrollService.getCurrentMonthKey();
+    const pageNum = page ? Number(page) : 1;
+    const limitNum = limit ? Number(limit) : 25;
+    return this.payrollService.findAll(user.organization, targetMonth, pageNum, limitNum);
   }
 
   @UseGuards(JwtAuthGuard)

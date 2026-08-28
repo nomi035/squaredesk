@@ -5,9 +5,10 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Attendance } from 'src/attendance/entities/attendance.entity';
-import { User } from 'src/user/entities/user.entity';
-import { Between, Repository } from 'typeorm';
+import { User, Role } from 'src/user/entities/user.entity';
+import { Between, Repository, Not } from 'typeorm';
 import { Payroll } from './entities/payroll.entity';
+import { AttendanceService } from 'src/attendance/attendance.service';
 
 const HOURS_PER_WORKDAY = 9;
 
@@ -20,6 +21,7 @@ export class PayrollService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Attendance)
     private readonly attendanceRepository: Repository<Attendance>,
+    private readonly attendanceService: AttendanceService,
   ) {}
 
   getCurrentMonthKey(date = new Date()): string {
@@ -51,8 +53,9 @@ export class PayrollService {
     return count;
   }
 
-  getExpectedHoursForMonth(monthKey: string): number {
-    return this.countWeekdaysInMonth(monthKey) * HOURS_PER_WORKDAY;
+  async getExpectedHoursForMonth(monthKey: string, shift?: any): Promise<number> {
+    const shiftHours = await this.attendanceService.getExpectedDailyWorkingHours(shift);
+    return this.countWeekdaysInMonth(monthKey) * shiftHours;
   }
 
   async getWorkedHoursForUser(
@@ -60,18 +63,7 @@ export class PayrollService {
     monthKey: string,
   ): Promise<number> {
     const { start, end } = this.getMonthDateRange(monthKey);
-    const attendances = await this.attendanceRepository.find({
-      where: {
-        employeeId: userId,
-        checkinDate: Between(start, end),
-      },
-      select: ['duration'],
-    });
-
-    const totalMinutes = attendances.reduce(
-      (sum, record) => sum + (Number(record.duration) || 0),
-      0,
-    );
+    const totalMinutes = await this.attendanceService.getDynamicMonthlyWorkedMinutes(userId, start, end);
     return Number((totalMinutes / 60).toFixed(2));
   }
 
@@ -102,9 +94,16 @@ export class PayrollService {
 
     const user = await this.userRepository.findOne({
       where: { id: userId, organizationId },
+      relations: ['shift']
     });
     if (!user) {
       throw new NotFoundException(`User ${userId} not found in organization`);
+    }
+    if (user.isActive === false) {
+      throw new BadRequestException(`User ${userId} is inactive`);
+    }
+    if (user.role === Role.ADMIN) {
+      throw new BadRequestException(`Cannot generate payroll for Admin ${userId}`);
     }
     if (!user.salaryAmount || user.salaryAmount <= 0) {
       throw new BadRequestException(
@@ -112,9 +111,9 @@ export class PayrollService {
       );
     }
 
-    const expectedHours = this.getExpectedHoursForMonth(monthKey);
+    const expectedHours = await this.getExpectedHoursForMonth(monthKey, user.shift);
     if (expectedHours <= 0) {
-      throw new BadRequestException('No working days in the selected month');
+      throw new BadRequestException(`User ${userId} has no active shift assigned or 0 expected hours`);
     }
 
     const workedHours = await this.getWorkedHoursForUser(userId, monthKey);
@@ -147,7 +146,8 @@ export class PayrollService {
 
   async generateBulk(organizationId: number, monthKey = this.getCurrentMonthKey()) {
     const users = await this.userRepository.find({
-      where: { organizationId },
+      where: { organizationId, isActive: true, role: Not(Role.ADMIN) },
+      relations: ['shift']
     });
 
     const results: Array<{
@@ -199,7 +199,7 @@ export class PayrollService {
 
     return {
       month: monthKey,
-      expectedHoursPerUser: this.getExpectedHoursForMonth(monthKey),
+      expectedHoursPerUser: await this.getExpectedHoursForMonth(monthKey),
       hoursPerWorkday: HOURS_PER_WORKDAY,
       totalUsers: users.length,
       generated,
@@ -209,15 +209,27 @@ export class PayrollService {
     };
   }
 
-  findAll(organizationId: number, month?: string) {
-    return this.payrollRepository.find({
+  async findAll(organizationId: number, month?: string, page: number = 1, limit: number = 25) {
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await this.payrollRepository.findAndCount({
       where: {
         organizationId,
-        ...(month ? { month } : {}),
+        ...(month && month !== 'all' ? { month } : {}),
       },
       relations: ['user'],
       order: { month: 'DESC', userId: 'ASC' },
+      skip,
+      take: limit,
     });
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 0,
+    };
   }
 
   findByUser(userId: number, organizationId: number) {

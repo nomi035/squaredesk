@@ -116,15 +116,31 @@ export class UserController {
 
   @Get('/office/based')
   @UseGuards(JwtAuthGuard)
-  async findAllOffice(@Query('role') role: Role, @currentUser() user: any) {
+  async findAllOffice(
+    @Query('role') role: Role, 
+    @Query('includeInactive') includeInactive: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @currentUser() user?: any
+  ) {
     const activeUser = await this.userService.findOne(user.userId);
-    return this.userService.findAllByOffice(role, activeUser.organizationId);
+    const pageNum = page ? Number(page) : undefined;
+    const limitNum = limit ? Number(limit) : undefined;
+    return this.userService.findAllByOffice(role, activeUser.organizationId, includeInactive === 'true', pageNum, limitNum);
   }
 
   @Get('/organization/based')
   @UseGuards(JwtAuthGuard)
-  findAllByOrganization(@Query('role') role: Role, @currentUser() user: any) {
-    return this.userService.findAllByOrganization(role, user.organization);
+  findAllByOrganization(
+    @Query('role') role: Role, 
+    @Query('includeInactive') includeInactive: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @currentUser() user?: any
+  ) {
+    const pageNum = page ? Number(page) : undefined;
+    const limitNum = limit ? Number(limit) : undefined;
+    return this.userService.findAllByOrganization(role, user.organization, includeInactive === 'true', pageNum, limitNum);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -7,6 +7,7 @@ import { Repository } from 'typeorm/repository/Repository';
 import { Between, DataSource, IsNull } from 'typeorm';
 import { PatchAttendanceDto } from './dto/patch-attendance.dto';
 import { Break } from 'src/break/entities/break.entity';
+import { BreakService } from 'src/break/break.service';
 function startOfWeek(date: Date): Date {
   const d = new Date(date);
   const day = d.getDay(); // 0 (Sun) - 6 (Sat)
@@ -28,7 +29,8 @@ export class AttendanceService {
   private readonly logger = new Logger(AttendanceService.name);
 
   constructor(@InjectRepository(Attendance) private attendanceRepository: Repository<Attendance>,
-  private readonly dataSource: DataSource,) {
+  private readonly dataSource: DataSource,
+    private readonly breakService: BreakService) {
 
   }
   create(createAttendanceDto: CreateAttendanceDto) {
@@ -54,10 +56,20 @@ export class AttendanceService {
     return this.attendanceRepository.delete(id);
   }
 
-  findByEmployeeId(employeeId: number) {
-    return this.attendanceRepository.find({ where: { employeeId },
-    order: { createdAt: 'DESC' },
-  relations: ['breaks']  });
+  async findByEmployeeId(employeeId: number) {
+    const attendances = await this.attendanceRepository.find({ 
+      where: { employeeId },
+      order: { checkinDate: 'DESC' },
+      relations: ['breaks', 'employee', 'employee.shift']  
+    });
+    
+    const globalBreaks = await this.breakService.findGlobalBreaks();
+    const grouped = this.groupByEmployee(attendances, globalBreaks);
+    
+    if (grouped.length > 0) {
+      return grouped[0].attendances;
+    }
+    return [];
   }
   async getTodayAttendance(employeeId: number) {
     const startOfDay = new Date();
@@ -132,6 +144,7 @@ export class AttendanceService {
   const attendances = await this.attendanceRepository
     .createQueryBuilder('attendance')
     .leftJoinAndSelect('attendance.employee', 'employee')
+    .leftJoinAndSelect('employee.shift', 'shift')
     .leftJoinAndSelect('attendance.breaks', 'breaks')
     .where('attendance.checkinDate BETWEEN :start AND :end', {
       start: startDate,
@@ -142,8 +155,8 @@ export class AttendanceService {
     .addOrderBy('attendance.checkinDate', 'ASC')
     .getMany();
 
-
-  return this.groupByEmployee(attendances);
+  const globalBreaks = await this.breakService.findGlobalBreaks();
+  return this.groupByEmployee(attendances, globalBreaks);
 }
   async getAttendanceByDateRangeOffice(
   startDate: Date,
@@ -154,6 +167,7 @@ export class AttendanceService {
   const attendances = await this.attendanceRepository
     .createQueryBuilder('attendance')
     .leftJoinAndSelect('attendance.employee', 'employee')
+    .leftJoinAndSelect('employee.shift', 'shift')
     .leftJoinAndSelect('attendance.breaks', 'breaks')
     .where('attendance.checkinDate BETWEEN :start AND :end', {
       start: startDate,
@@ -164,11 +178,41 @@ export class AttendanceService {
     .addOrderBy('attendance.checkinDate', 'ASC')
     .getMany();
 
-
-  return this.groupByEmployee(attendances);
+  const globalBreaks = await this.breakService.findGlobalBreaks();
+  return this.groupByEmployee(attendances, globalBreaks);
 }
-private groupByEmployee(attendances: Attendance[]) {
+private groupByEmployee(attendances: Attendance[], globalBreaks: Break[] = []) {
   const map = new Map<number, any>();
+
+  const parseTimeToMinutes = (timeStr: string) => {
+    if (!timeStr) return 0;
+    const cleaned = timeStr.trim().toUpperCase();
+    const match = cleaned.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/);
+    if (!match) return 0;
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const ampm = match[4];
+    if (ampm === 'PM' && hours < 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  };
+
+  const minutesToTimeStr = (totalMins: number) => {
+    let hours = Math.floor(totalMins / 60) % 24;
+    const mins = totalMins % 60;
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    let h12 = hours % 12;
+    if (h12 === 0) h12 = 12;
+    const hStr = h12.toString().padStart(2, '0');
+    const mStr = mins.toString().padStart(2, '0');
+    return `${hStr}:${mStr} ${ampm}`;
+  };
+
+  const relativeMins = (base: number, target: number) => {
+      let diff = target - base;
+      if (diff < -12 * 60) diff += 24 * 60; 
+      return diff;
+  };
 
   for (const attendance of attendances) {
     const empId = attendance.employeeId;
@@ -176,11 +220,97 @@ private groupByEmployee(attendances: Attendance[]) {
     if (!map.has(empId)) {
       map.set(empId, {
         employeeId: empId,
-        employeeName: attendance.employee.firstName+' '+attendance.employee.lastName,
+        employeeName: attendance.employee?.firstName + ' ' + attendance.employee?.lastName,
         attendances: [],
       });
     }
 
+    let sessions: any[] = [];
+    let totalWorkedMinutes = 0;
+
+    if (attendance.checkinTime) {
+      let originalCheckinMins = parseTimeToMinutes(attendance.checkinTime);
+      let originalCheckoutMins = attendance.checkoutTime ? parseTimeToMinutes(attendance.checkoutTime) : null;
+      let checkinMins = originalCheckinMins;
+      let checkoutMins = originalCheckoutMins;
+      
+      const shift = attendance.employee?.shift;
+      if (shift) {
+         let shiftStartMins = parseTimeToMinutes(shift.startTime);
+         if (relativeMins(shiftStartMins, checkinMins) < 0) {
+            checkinMins = shiftStartMins; 
+         }
+         
+         if (checkoutMins !== null) {
+             let shiftEndMins = parseTimeToMinutes(shift.endTime);
+             if (relativeMins(shiftEndMins, checkoutMins) > 0) {
+                 checkoutMins = shiftEndMins;
+             }
+         }
+      }
+      
+      if (checkoutMins !== null && relativeMins(checkinMins, checkoutMins) <= 0) {
+          checkoutMins = checkinMins; 
+      }
+
+      let currentStartMins: number | null = checkinMins;
+      const allBreaks = [...(attendance.breaks || []), ...globalBreaks];
+      
+      const validBreaks = allBreaks.map(b => ({
+          start: parseTimeToMinutes(b.startTime),
+          end: b.endTime ? parseTimeToMinutes(b.endTime) : null
+      })).filter(b => {
+          if (b.end !== null && relativeMins(checkinMins, b.end) <= 0) return false;
+          if (checkoutMins !== null && relativeMins(checkoutMins, b.start) >= 0) return false;
+          return true;
+      }).map(b => {
+          let start = b.start;
+          let end = b.end;
+          if (relativeMins(checkinMins, start) < 0) start = checkinMins;
+          if (checkoutMins !== null && end !== null && relativeMins(checkoutMins, end) > 0) end = checkoutMins;
+          return { start, end };
+      }).sort((a, b) => relativeMins(checkinMins, a.start) - relativeMins(checkinMins, b.start));
+
+      let punchBillableMins = 0;
+
+      for (let i = 0; i < validBreaks.length; i++) {
+        const brk = validBreaks[i];
+
+        if (currentStartMins !== null) {
+           const chunkDur = relativeMins(currentStartMins, brk.start);
+           if (chunkDur > 0) {
+               punchBillableMins += chunkDur;
+           }
+        }
+        
+        if (brk.end !== null) {
+           if (currentStartMins === null || relativeMins(currentStartMins, brk.end) > 0) {
+               currentStartMins = brk.end;
+           }
+        } else {
+           currentStartMins = null;
+           break;
+        }
+      }
+
+      if (currentStartMins !== null && checkoutMins !== null) {
+        const finalChunkDur = relativeMins(currentStartMins, checkoutMins);
+        if (finalChunkDur > 0) {
+            punchBillableMins += finalChunkDur;
+        }
+      }
+
+      sessions.push({
+          name: `Session 1`,
+          startDate: attendance.checkinDate,
+          startTime: minutesToTimeStr(originalCheckinMins),
+          endDate: attendance.checkoutDate || attendance.checkinDate,
+          endTime: originalCheckoutMins !== null ? minutesToTimeStr(originalCheckoutMins) : '-',
+          duration: punchBillableMins
+      });
+      
+      totalWorkedMinutes += punchBillableMins;
+    }
 
     map.get(empId).attendances.push({
       id: attendance.id,
@@ -189,6 +319,8 @@ private groupByEmployee(attendances: Attendance[]) {
       checkoutDate: attendance.checkoutDate,
       checkoutTime: attendance.checkoutTime,
       breaks: attendance.breaks,
+      sessions: sessions,
+      duration: totalWorkedMinutes,
     });
   }
 
@@ -301,52 +433,88 @@ async updateAttendance(
   return diff/60;
   }
 
+  async getDynamicMonthlyWorkedMinutes(employeeId: number, start: Date, end: Date): Promise<number> {
+    const attendances = await this.attendanceRepository
+      .createQueryBuilder('a')
+      .leftJoinAndSelect('a.employee', 'employee')
+      .leftJoinAndSelect('employee.shift', 'shift')
+      .leftJoinAndSelect('a.breaks', 'breaks')
+      .where('a.employeeId = :employeeId', { employeeId })
+      .andWhere('a.checkinDate BETWEEN :start AND :end', { start, end })
+      .getMany();
+
+    const globalBreaks = await this.breakService.findGlobalBreaks();
+    const grouped = this.groupByEmployee(attendances, globalBreaks);
+    if (grouped.length === 0) return 0;
+    
+    return grouped[0].attendances.reduce((sum, att) => sum + (att.duration || 0), 0);
+  }
+
+  async getExpectedDailyWorkingHours(shift: any): Promise<number> {
+    if (!shift || !shift.startTime || !shift.endTime) {
+      return 0;
+    }
+
+    const [startH, startM] = shift.startTime.split(':').map(Number);
+    const [endH, endM] = shift.endTime.split(':').map(Number);
+    let rawDuration = (endH + endM / 60) - (startH + startM / 60);
+    if (rawDuration < 0) rawDuration += 24;
+
+    const globalBreaks = await this.breakService.findGlobalBreaks();
+    let totalGlobalBreakMinutes = 0;
+    for (const b of globalBreaks) {
+      if (b.startTime && b.endTime) {
+        const [bsH, bsM] = b.startTime.split(':').map(Number);
+        const [beH, beM] = b.endTime.split(':').map(Number);
+        let bDur = (beH * 60 + beM) - (bsH * 60 + bsM);
+        if (bDur < 0) bDur += 24 * 60;
+        totalGlobalBreakMinutes += bDur;
+      }
+    }
+
+    const breakHours = totalGlobalBreakMinutes / 60;
+    return Math.max(0, rawDuration - breakHours);
+  }
+
 async getWeekAndMonthDuration(employeeId: number) {
-  const weekStart = `date_trunc('week', NOW())`;
-  const monthStart = `date_trunc('month', NOW())`;
-
-  const attendances = await this.attendanceRepository
-    .createQueryBuilder('a')
-    .select([
-      'a.id',
-      'a.checkinDate',
-      'a.duration',
-    ])
-    .where('a.employeeId = :employeeId', { employeeId })
-
-    .andWhere(
-      `(a.checkinDate >= ${weekStart} OR a.checkinDate >= ${monthStart})`,
-    )
-    .getMany();
-console.log("attendances",attendances)
-  // Now calculate manually
   const now = new Date();
   const todayStartJs = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const weekStartJs = startOfWeek(now);
   const monthStartJs = startOfMonth(now);
 
+  const attendances = await this.attendanceRepository
+    .createQueryBuilder('a')
+    .leftJoinAndSelect('a.employee', 'employee')
+    .leftJoinAndSelect('employee.shift', 'shift')
+    .leftJoinAndSelect('a.breaks', 'breaks')
+    .where('a.employeeId = :employeeId', { employeeId })
+    .andWhere('a.checkinDate >= :monthStartJs', { monthStartJs })
+    .getMany();
+
+  const globalBreaks = await this.breakService.findGlobalBreaks();
+  const grouped = this.groupByEmployee(attendances, globalBreaks);
+  const dynamicAttendances = grouped.length > 0 ? grouped[0].attendances : [];
+
   let todayTotal = 0;
   let weekTotal = 0;
   let monthTotal = 0;
 
-  for (const attendance of attendances) {
+  for (const attendance of dynamicAttendances) {
     const checkin = new Date(attendance.checkinDate);
 
     if (checkin >= todayStartJs) {
-      todayTotal += attendance.duration;
+      todayTotal += attendance.duration || 0;
     }
 
     if (checkin >= weekStartJs) {
-      weekTotal += attendance.duration;
+      weekTotal += attendance.duration || 0;
     }
 
     if (checkin >= monthStartJs) {
-      monthTotal += attendance.duration;
+      monthTotal += attendance.duration || 0;
     }
   }
-console.log("todayTotal",todayTotal)
-console.log("weekTotal",weekTotal)
-console.log("monthTotal",monthTotal)
+
   return {
     currentDay: Number((todayTotal / 60).toFixed(2)),
     currentWeek: Number((weekTotal / 60).toFixed(2)),
@@ -359,20 +527,21 @@ async getManagerMonthHours(officeId:number){
   const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
   startDate.setHours(0, 0, 0, 0);
 
-  // Month names
   const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-  // Fetch attendances for employees in this office
   const attendances = await this.attendanceRepository
     .createQueryBuilder('a')
-    .innerJoin('a.employee', 'e')
-    .select(['a.checkinDate', 'a.duration'])
-    .where('a.duration > 0')
-    .andWhere('e.officeId = :officeId', { officeId })
+    .innerJoinAndSelect('a.employee', 'employee')
+    .leftJoinAndSelect('employee.shift', 'shift')
+    .leftJoinAndSelect('a.breaks', 'breaks')
+    .where('employee.officeId = :officeId', { officeId })
     .andWhere('a.checkinDate >= :startDate', { startDate })
     .getMany();
 
-  // Initialize result object with 12 months
+  const globalBreaks = await this.breakService.findGlobalBreaks();
+  const grouped = this.groupByEmployee(attendances, globalBreaks);
+  const dynamicAttendances = grouped.flatMap(g => g.attendances);
+
   const result: Record<string, number> = {};
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -380,12 +549,11 @@ async getManagerMonthHours(officeId:number){
     result[monthKey] = 0;
   }
 
-  // Aggregate durations
-  for (const att of attendances) {
+  for (const att of dynamicAttendances) {
     const d = new Date(att.checkinDate);
     const monthKey = monthNames[d.getMonth()];
     if (result[monthKey] !== undefined) {
-      result[monthKey] += att.duration;
+      result[monthKey] += att.duration || 0;
     }
   }
 
@@ -397,20 +565,21 @@ async getAdminMonthHours(officeId:number){
   const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
   startDate.setHours(0, 0, 0, 0);
 
-  // Month names
   const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-  // Fetch attendances for employees in this office
   const attendances = await this.attendanceRepository
     .createQueryBuilder('a')
-    .innerJoin('a.employee', 'e')
-    .select(['a.checkinDate', 'a.duration'])
-    .where('a.duration > 0')
-    .andWhere('e.organizationId = :officeId', { officeId })
+    .innerJoinAndSelect('a.employee', 'employee')
+    .leftJoinAndSelect('employee.shift', 'shift')
+    .leftJoinAndSelect('a.breaks', 'breaks')
+    .where('employee.organizationId = :officeId', { officeId })
     .andWhere('a.checkinDate >= :startDate', { startDate })
     .getMany();
 
-  // Initialize result object with 12 months
+  const globalBreaks = await this.breakService.findGlobalBreaks();
+  const grouped = this.groupByEmployee(attendances, globalBreaks);
+  const dynamicAttendances = grouped.flatMap(g => g.attendances);
+
   const result: Record<string, number> = {};
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -418,12 +587,11 @@ async getAdminMonthHours(officeId:number){
     result[monthKey] = 0;
   }
 
-  // Aggregate durations
-  for (const att of attendances) {
+  for (const att of dynamicAttendances) {
     const d = new Date(att.checkinDate);
     const monthKey = monthNames[d.getMonth()];
     if (result[monthKey] !== undefined) {
-      result[monthKey] += att.duration;
+      result[monthKey] += att.duration || 0;
     }
   }
 
@@ -432,54 +600,48 @@ async getAdminMonthHours(officeId:number){
 
 async getTodayAndMonthStats(organizationId: number) {
   const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const endOfDay = new Date(startOfDay);
-  endOfDay.setHours(23, 59, 59, 999);
-  const startOfWeekJs = startOfWeek(now);
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const todayStartJs = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekStartJs = startOfWeek(now);
+  const monthStartJs = startOfMonth(now);
 
-  const todayAttendances = await this.attendanceRepository
+  const attendances = await this.attendanceRepository
     .createQueryBuilder('a')
-    .innerJoin('a.employee', 'e')
-    .select(['a.employeeId', 'a.duration'])
-    .where('e.organizationId = :organizationId', { organizationId })
-    .andWhere('a.checkinDate BETWEEN :startOfDay AND :endOfDay', {
-      startOfDay,
-      endOfDay,
-    })
+    .innerJoinAndSelect('a.employee', 'employee')
+    .leftJoinAndSelect('employee.shift', 'shift')
+    .leftJoinAndSelect('a.breaks', 'breaks')
+    .where('employee.organizationId = :organizationId', { organizationId })
+    .andWhere('a.checkinDate >= :monthStartJs', { monthStartJs })
     .getMany();
 
-  const todayTotalMinutes = todayAttendances.reduce(
-    (sum, a) => sum + (a.duration || 0),
-    0,
-  );
-  const todayEmployeeCount = new Set(
-    todayAttendances.map((a) => a.employeeId),
-  ).size;
+  const globalBreaks = await this.breakService.findGlobalBreaks();
+  const grouped = this.groupByEmployee(attendances, globalBreaks);
+  const dynamicAttendances = grouped.flatMap(g => g.attendances);
 
-  const weekResult = await this.attendanceRepository
-    .createQueryBuilder('a')
-    .innerJoin('a.employee', 'e')
-    .select('SUM(a.duration)', 'total')
-    .where('e.organizationId = :organizationId', { organizationId })
-    .andWhere('a.checkinDate >= :startOfWeekJs', { startOfWeekJs })
-    .getRawOne();
+  let todayTotalMinutes = 0;
+  let weekTotalMinutes = 0;
+  let monthTotalMinutes = 0;
+  const todayEmployeeIds = new Set<number>();
 
-  const weekTotalMinutes = Number(weekResult?.total) || 0;
-
-  const monthResult = await this.attendanceRepository
-    .createQueryBuilder('a')
-    .innerJoin('a.employee', 'e')
-    .select('SUM(a.duration)', 'total')
-    .where('e.organizationId = :organizationId', { organizationId })
-    .andWhere('a.checkinDate >= :startOfMonth', { startOfMonth })
-    .getRawOne();
-
-  const monthTotalMinutes = Number(monthResult?.total) || 0;
+  for (const emp of grouped) {
+    for (const att of emp.attendances) {
+      const checkin = new Date(att.checkinDate);
+      
+      if (checkin >= todayStartJs) {
+        todayTotalMinutes += att.duration || 0;
+        todayEmployeeIds.add(emp.employeeId);
+      }
+      if (checkin >= weekStartJs) {
+        weekTotalMinutes += att.duration || 0;
+      }
+      if (checkin >= monthStartJs) {
+        monthTotalMinutes += att.duration || 0;
+      }
+    }
+  }
 
   return {
     todayTotalHours: Number((todayTotalMinutes / 60).toFixed(2)),
-    todayEmployeeCount,
+    todayEmployeeCount: todayEmployeeIds.size,
     weekTotalHours: Number((weekTotalMinutes / 60).toFixed(2)),
     monthTotalHours: Number((monthTotalMinutes / 60).toFixed(2)),
   };
