@@ -24,6 +24,10 @@ type PsychiatryCsvRow = {
   'Authorized Phone': string;
   Disposition: string;
   Comment: string;
+  Email?: string;
+  'Email Address'?: string;
+  'email addresses'?: string;
+  'Email Addresses'?: string;
 } & Record<string, any>;
 
 import { ProviderFile } from './entities/provider-file.entity';
@@ -39,13 +43,13 @@ export class OutreachService {
     private readonly providerFileRepository: Repository<ProviderFile>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) {}
+  ) { }
 
   private parseEnumerationDate(value: string): Date | null {
     if (!value?.trim()) {
       return null;
     }
-    
+
     // Handle YYYY-MM-DD (ISO format from frontend normalization)
     if (value.includes('-')) {
       const [year, month, day] = value.split('-').map(Number);
@@ -53,7 +57,7 @@ export class OutreachService {
         return new Date(year, month - 1, day);
       }
     }
-    
+
     // Handle MM/DD/YYYY
     const [month, day, year] = value.split('/').map((part) => Number(part));
     if (!month || !day || !year) {
@@ -77,8 +81,14 @@ export class OutreachService {
       'Authorized Phone': authPhone,
       Disposition,
       Comment,
+      Email,
+      'Email Address': emailAddress,
+      'email addresses': emailAddresses,
+      'Email Addresses': emailAddresses2,
       ...additionalData
     } = row;
+
+    const emailValue = (Email || emailAddress || emailAddresses || emailAddresses2 || '').trim() || null;
 
     return {
       npi: NPI?.trim() ?? '',
@@ -92,6 +102,7 @@ export class OutreachService {
       authFirst: authFirst?.trim() || null,
       authLast: authLast?.trim() || null,
       authPhone: authPhone?.trim() || null,
+      email: emailValue,
       disposition: Disposition?.trim() || null,
       csvComments: Comment?.trim() || null,
       comment: null,
@@ -302,6 +313,25 @@ export class OutreachService {
     };
   }
 
+  /** Returns ALL matching records without a pagination cap, intended for CSV export only. */
+  async findAllForExport(
+    organizationId: number,
+    filters?: {
+      providerFileId?: number;
+      state?: string;
+      taxonomy?: string;
+      disposition?: string;
+      startDate?: string;
+      toDate?: string;
+    },
+  ) {
+    const records = await this.buildFilteredQuery(organizationId, filters)
+      .orderBy('outreach.id', 'ASC')
+      .getMany();
+
+    return { records, total: records.length };
+  }
+
   private mapGraphRows(rows: Array<{ label: string | null; count: string }>) {
     return rows.map((row) => ({
       label: row.label?.trim() || 'Not Set',
@@ -321,21 +351,21 @@ export class OutreachService {
     },
   ) {
     const taxonomyQuery = this.buildFilteredQuery(organizationId, filters)
-      .select('outreach.taxonomy', 'label')
+      .select('UPPER(outreach.taxonomy)', 'label')
       .addSelect('COUNT(*)', 'count')
-      .groupBy('outreach.taxonomy')
+      .groupBy('UPPER(outreach.taxonomy)')
       .orderBy('count', 'DESC');
 
     const stateQuery = this.buildFilteredQuery(organizationId, filters)
-      .select('outreach.state', 'label')
+      .select('UPPER(outreach.state)', 'label')
       .addSelect('COUNT(*)', 'count')
-      .groupBy('outreach.state')
+      .groupBy('UPPER(outreach.state)')
       .orderBy('count', 'DESC');
 
     const dispositionQuery = this.buildFilteredQuery(organizationId, filters)
-      .select('outreach.disposition', 'label')
+      .select('UPPER(outreach.disposition)', 'label')
       .addSelect('COUNT(*)', 'count')
-      .groupBy('outreach.disposition')
+      .groupBy('UPPER(outreach.disposition)')
       .orderBy('count', 'DESC');
 
     const totalQuery = this.buildFilteredQuery(organizationId, filters);
@@ -473,7 +503,18 @@ export class OutreachService {
     if (!record) {
       throw new NotFoundException(`Outreach record ${id} not found`);
     }
-    await this.outreachRepository.update(id, updateOutreachDto);
+
+    const updatePayload: Record<string, any> = { ...updateOutreachDto };
+    if (
+      updateOutreachDto.disposition !== undefined &&
+      updateOutreachDto.disposition !== record.disposition
+    ) {
+      updatePayload.dispositionUpdatedAt = updateOutreachDto.dispositionUpdatedAt
+        ? new Date(updateOutreachDto.dispositionUpdatedAt)
+        : new Date();
+    }
+
+    await this.outreachRepository.update(id, updatePayload);
     return this.findOne(id);
   }
 

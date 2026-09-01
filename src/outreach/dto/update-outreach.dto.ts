@@ -11,4 +11,14 @@ export class UpdateOutreachDto {
   @IsOptional()
   @IsString()
   disposition?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  dispositionUpdatedAt?: string | Date;
 }

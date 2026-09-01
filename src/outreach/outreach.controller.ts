@@ -118,6 +118,34 @@ export class OutreachController {
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @Get('export')
+  @ApiQuery({ name: 'state', required: false, description: 'Filter by state (e.g. CA, NY)' })
+  @ApiQuery({ name: 'taxonomy', required: false, description: 'Filter by taxonomy (partial match)' })
+  @ApiQuery({ name: 'disposition', required: false, description: 'Filter by disposition (partial match)' })
+  @ApiQuery({ name: 'startDate', required: false, description: 'Filter from enumeration date (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'toDate', required: false, description: 'Filter to enumeration date (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'providerFileId', required: false, description: 'Filter by file' })
+  exportAll(
+    @currentUser() user: { organization: number },
+    @Query('providerFileId') providerFileId?: string,
+    @Query('state') state?: string,
+    @Query('taxonomy') taxonomy?: string,
+    @Query('disposition') disposition?: string,
+    @Query('startDate') startDate?: string,
+    @Query('toDate') toDate?: string,
+  ) {
+    return this.outreachService.findAllForExport(user.organization, {
+      providerFileId: providerFileId ? Number(providerFileId) : undefined,
+      state,
+      taxonomy,
+      disposition,
+      startDate,
+      toDate,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get('graph')
   @ApiQuery({ name: 'state', required: false, description: 'Filter by state (e.g. CA, NY)' })
   @ApiQuery({ name: 'startDate', required: false, description: 'Filter from enumeration date (YYYY-MM-DD)' })

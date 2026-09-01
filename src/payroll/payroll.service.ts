@@ -39,11 +39,18 @@ export class PayrollService {
     return { start, end };
   }
 
-  countWeekdaysInMonth(monthKey: string): number {
+  countWeekdaysInMonth(monthKey: string, customStart?: string, customEnd?: string): number {
     const { start, end } = this.getMonthDateRange(monthKey);
+    const actualStart = customStart ? new Date(customStart) : start;
+    const actualEnd = customEnd ? new Date(customEnd) : end;
+    
+    // Ensure times are correct for custom dates
+    if (customStart) actualStart.setHours(0, 0, 0, 0);
+    if (customEnd) actualEnd.setHours(23, 59, 59, 999);
+
     let count = 0;
-    const cursor = new Date(start);
-    while (cursor <= end) {
+    const cursor = new Date(actualStart);
+    while (cursor <= actualEnd) {
       const day = cursor.getDay();
       if (day >= 1 && day <= 5) {
         count += 1;
@@ -53,17 +60,25 @@ export class PayrollService {
     return count;
   }
 
-  async getExpectedHoursForMonth(monthKey: string, shift?: any): Promise<number> {
+  async getExpectedHoursForMonth(monthKey: string, shift?: any, customStart?: string, customEnd?: string): Promise<number> {
     const shiftHours = await this.attendanceService.getExpectedDailyWorkingHours(shift);
-    return this.countWeekdaysInMonth(monthKey) * shiftHours;
+    return this.countWeekdaysInMonth(monthKey, customStart, customEnd) * shiftHours;
   }
 
   async getWorkedHoursForUser(
     userId: number,
     monthKey: string,
+    customStart?: string,
+    customEnd?: string,
   ): Promise<number> {
     const { start, end } = this.getMonthDateRange(monthKey);
-    const totalMinutes = await this.attendanceService.getDynamicMonthlyWorkedMinutes(userId, start, end);
+    const actualStart = customStart ? new Date(customStart) : start;
+    const actualEnd = customEnd ? new Date(customEnd) : end;
+    
+    if (customStart) actualStart.setHours(0, 0, 0, 0);
+    if (customEnd) actualEnd.setHours(23, 59, 59, 999);
+
+    const totalMinutes = await this.attendanceService.getDynamicMonthlyWorkedMinutes(userId, actualStart, actualEnd);
     return Number((totalMinutes / 60).toFixed(2));
   }
 
@@ -82,14 +97,12 @@ export class PayrollService {
     userId: number,
     organizationId: number,
     monthKey = this.getCurrentMonthKey(),
+    customStartDate?: string,
+    customEndDate?: string,
   ) {
     const existing = await this.findPayrollForUserMonth(userId, monthKey);
     if (existing) {
-      return {
-        generated: false,
-        payroll: existing,
-        message: `Payroll already exists for ${monthKey}`,
-      };
+      await this.payrollRepository.remove(existing);
     }
 
     const user = await this.userRepository.findOne({
@@ -111,12 +124,12 @@ export class PayrollService {
       );
     }
 
-    const expectedHours = await this.getExpectedHoursForMonth(monthKey, user.shift);
+    const expectedHours = await this.getExpectedHoursForMonth(monthKey, user.shift, customStartDate, customEndDate);
     if (expectedHours <= 0) {
       throw new BadRequestException(`User ${userId} has no active shift assigned or 0 expected hours`);
     }
 
-    const workedHours = await this.getWorkedHoursForUser(userId, monthKey);
+    const workedHours = await this.getWorkedHoursForUser(userId, monthKey, customStartDate, customEndDate);
     const hourlyRate = user.salaryAmount / expectedHours;
     const amount = this.roundCurrency(workedHours * hourlyRate);
 
@@ -139,8 +152,11 @@ export class PayrollService {
 
     return {
       generated: true,
+      regenerated: !!existing,
       payroll,
-      message: `Payroll generated for ${monthKey}`,
+      message: existing
+        ? `Payroll regenerated for ${monthKey}`
+        : `Payroll generated for ${monthKey}`,
     };
   }
 
@@ -249,5 +265,10 @@ export class PayrollService {
       throw new NotFoundException(`Payroll ${id} not found`);
     }
     return payroll;
+  }
+
+  async remove(id: number, organizationId: number) {
+    const payroll = await this.findOne(id, organizationId);
+    return this.payrollRepository.remove(payroll);
   }
 }

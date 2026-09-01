@@ -40,7 +40,13 @@ export class Outreach extends BaseEntity {
   authPhone: string;
 
   @Column({ nullable: true })
+  email: string;
+
+  @Column({ nullable: true })
   disposition: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  dispositionUpdatedAt: Date | null;
 
   @Column({ type: 'text', nullable: true })
   csvComments: string;

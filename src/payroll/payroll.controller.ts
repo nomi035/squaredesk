@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, UseGuards, Delete } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guard';
 import { currentUser } from 'src/decorators/currentuser';
@@ -13,16 +13,22 @@ export class PayrollController {
   @ApiBearerAuth()
   @Post('generate/user/:userId')
   @ApiQuery({ name: 'month', required: false, description: 'YYYY-MM (defaults to current month)' })
+  @ApiQuery({ name: 'startDate', required: false, description: 'YYYY-MM-DD custom start date' })
+  @ApiQuery({ name: 'endDate', required: false, description: 'YYYY-MM-DD custom end date' })
   generateForUser(
     @Param('userId') userId: string,
     @currentUser() user: { organization: number },
     @Query('month') month?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
     const monthKey = month ?? this.payrollService.getCurrentMonthKey();
     return this.payrollService.calculatePayrollForUser(
       +userId,
       user.organization,
       monthKey,
+      startDate,
+      endDate,
     );
   }
 
@@ -71,5 +77,12 @@ export class PayrollController {
   @Get(':id')
   findOne(@Param('id') id: string, @currentUser() user: { organization: number }) {
     return this.payrollService.findOne(+id, user.organization);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Delete(':id')
+  remove(@Param('id') id: string, @currentUser() user: { organization: number }) {
+    return this.payrollService.remove(+id, user.organization);
   }
 }
