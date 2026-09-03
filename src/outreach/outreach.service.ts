@@ -58,11 +58,17 @@ export class OutreachService {
       }
     }
 
-    // Handle MM/DD/YYYY
-    const [month, day, year] = value.split('/').map((part) => Number(part));
+    // Handle MM/DD/YYYY or MM/DD/YY
+    let [month, day, year] = value.split('/').map((part) => Number(part));
     if (!month || !day || !year) {
       return null;
     }
+    
+    // Fix 2-digit years (e.g. 23 becomes 2023)
+    if (year < 100) {
+      year += 2000;
+    }
+    
     return new Date(year, month - 1, day);
   }
 
@@ -215,8 +221,9 @@ export class OutreachService {
       .where('outreach.organizationId = :organizationId', { organizationId });
 
     if (state) {
-      query.andWhere('UPPER(outreach.state) = :state', {
-        state: state.toUpperCase(),
+      const statesArray = state.split(',').map((s) => s.trim().toUpperCase());
+      query.andWhere('UPPER(outreach.state) IN (:...statesArray)', {
+        statesArray,
       });
     }
 
@@ -240,11 +247,11 @@ export class OutreachService {
     }
 
     if (startDate) {
-      query.andWhere('outreach.enumerationDate >= :startDate', { startDate });
+      query.andWhere('outreach.enumerationDate >= CAST(:startDate AS DATE)', { startDate });
     }
 
     if (toDate) {
-      query.andWhere('outreach.enumerationDate <= :toDate', { toDate });
+      query.andWhere('outreach.enumerationDate <= CAST(:toDate AS DATE)', { toDate });
     }
 
     return query;
