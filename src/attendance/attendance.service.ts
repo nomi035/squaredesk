@@ -273,30 +273,32 @@ private groupByEmployee(attendances: Attendance[], globalBreaks: Break[] = []) {
 
       let punchBillableMins = 0;
 
-      for (let i = 0; i < validBreaks.length; i++) {
-        const brk = validBreaks[i];
+      if (checkoutMins !== null) {
+        for (let i = 0; i < validBreaks.length; i++) {
+          const brk = validBreaks[i];
 
-        if (currentStartMins !== null) {
-           const chunkDur = relativeMins(currentStartMins, brk.start);
-           if (chunkDur > 0) {
-               punchBillableMins += chunkDur;
-           }
+          if (currentStartMins !== null) {
+             const chunkDur = relativeMins(currentStartMins, brk.start);
+             if (chunkDur > 0) {
+                 punchBillableMins += chunkDur;
+             }
+          }
+          
+          if (brk.end !== null) {
+             if (currentStartMins === null || relativeMins(currentStartMins, brk.end) > 0) {
+                 currentStartMins = brk.end;
+             }
+          } else {
+             currentStartMins = null;
+             break;
+          }
         }
-        
-        if (brk.end !== null) {
-           if (currentStartMins === null || relativeMins(currentStartMins, brk.end) > 0) {
-               currentStartMins = brk.end;
-           }
-        } else {
-           currentStartMins = null;
-           break;
-        }
-      }
 
-      if (currentStartMins !== null && checkoutMins !== null) {
-        const finalChunkDur = relativeMins(currentStartMins, checkoutMins);
-        if (finalChunkDur > 0) {
-            punchBillableMins += finalChunkDur;
+        if (currentStartMins !== null && checkoutMins !== null) {
+          const finalChunkDur = relativeMins(currentStartMins, checkoutMins);
+          if (finalChunkDur > 0) {
+              punchBillableMins += finalChunkDur;
+          }
         }
       }
 
