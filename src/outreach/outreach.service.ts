@@ -241,8 +241,8 @@ export class OutreachService {
 
     if (disposition) {
       query.andWhere(
-        "REPLACE(LOWER(COALESCE(outreach.disposition, '')), ' ', '') LIKE :disposition",
-        { disposition: `%${this.normalizeCompact(disposition)}%` },
+        "TRIM(LOWER(COALESCE(outreach.disposition, ''))) = :disposition",
+        { disposition: disposition.trim().toLowerCase() },
       );
     }
 
