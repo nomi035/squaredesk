@@ -96,6 +96,29 @@ export class OutreachService {
 
     const emailValue = (Email || emailAddress || emailAddresses || emailAddresses2 || '').trim() || null;
 
+    const rawDisposition = Disposition?.trim() || null;
+    let validatedDisposition = null;
+    
+    if (rawDisposition) {
+      const validOptions = [
+        'Connected',
+        'Disconnected',
+        'Voice Mail',
+        'Voice Mail Full',
+        'Wrong Number',
+        'Not Answered',
+        'No Voice Mail Setup',
+        'Hung Up',
+        'Not Interested',
+        'Interested',
+        'IVR',
+        'Business Closed',
+        'Billing Company',
+      ];
+      const match = validOptions.find(d => d.toLowerCase() === rawDisposition.toLowerCase());
+      validatedDisposition = match || null;
+    }
+
     return {
       npi: NPI?.trim() ?? '',
       name: Name?.trim() ?? '',
@@ -109,7 +132,7 @@ export class OutreachService {
       authLast: authLast?.trim() || null,
       authPhone: authPhone?.trim() || null,
       email: emailValue,
-      disposition: Disposition?.trim() || null,
+      disposition: validatedDisposition,
       csvComments: Comment?.trim() || null,
       comment: null,
       status: 'pending',
