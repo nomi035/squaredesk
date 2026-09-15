@@ -6,9 +6,10 @@ import { Payroll } from './entities/payroll.entity';
 import { PayrollController } from './payroll.controller';
 import { PayrollService } from './payroll.service';
 import { AttendanceModule } from 'src/attendance/attendance.module';
+import { HolidayModule } from 'src/holiday/holiday.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Payroll, User, Attendance]), AttendanceModule],
+  imports: [TypeOrmModule.forFeature([Payroll, User, Attendance]), AttendanceModule, HolidayModule],
   controllers: [PayrollController],
   providers: [PayrollService],
   exports: [PayrollService],

@@ -20,6 +20,8 @@ import { PermissionModule } from './permission/permission.module';
 import { PayrollModule } from './payroll/payroll.module';
 import { CompanyPoliciesModule } from './company-policies/company-policies.module';
 import { AdmsModule } from './adms/adms.module';
+import { HolidayModule } from './holiday/holiday.module';
+import { LeadModule } from './lead/lead.module';
 
 @Module({
   imports: [UserModule,
@@ -50,7 +52,9 @@ import { AdmsModule } from './adms/adms.module';
      PermissionModule,
      PayrollModule,
      CompanyPoliciesModule,
-     AdmsModule,],
+     AdmsModule,
+     HolidayModule,
+     LeadModule,],
   controllers: [AppController],
   providers: [AppService],
 })

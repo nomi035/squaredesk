@@ -12,7 +12,19 @@ export class PermissionService {
     private readonly permissionRepository: Repository<Permission>,
   ) {}
 
-  create(createPermissionDto: CreatePermissionDto) {
+  async create(createPermissionDto: CreatePermissionDto) {
+    const existing = await this.permissionRepository.findOne({
+      where: {
+        userId: createPermissionDto.userId,
+        permissionName: createPermissionDto.permissionName,
+      },
+    });
+
+    if (existing) {
+      existing.allowed = createPermissionDto.allowed;
+      return this.permissionRepository.save(existing);
+    }
+
     return this.permissionRepository.save(createPermissionDto);
   }
 

@@ -9,6 +9,7 @@ import { User, Role } from 'src/user/entities/user.entity';
 import { Between, Repository, Not } from 'typeorm';
 import { Payroll } from './entities/payroll.entity';
 import { AttendanceService } from 'src/attendance/attendance.service';
+import { HolidayService } from 'src/holiday/holiday.service';
 
 const HOURS_PER_WORKDAY = 9;
 
@@ -22,6 +23,7 @@ export class PayrollService {
     @InjectRepository(Attendance)
     private readonly attendanceRepository: Repository<Attendance>,
     private readonly attendanceService: AttendanceService,
+    private readonly holidayService: HolidayService,
   ) {}
 
   getCurrentMonthKey(date = new Date()): string {
@@ -60,9 +62,35 @@ export class PayrollService {
     return count;
   }
 
-  async getExpectedHoursForMonth(monthKey: string, shift?: any, customStart?: string, customEnd?: string): Promise<number> {
+  async getExpectedHoursForMonth(monthKey: string, organizationId?: number, shift?: any, customStart?: string, customEnd?: string): Promise<number> {
     const shiftHours = await this.attendanceService.getExpectedDailyWorkingHours(shift);
-    return this.countWeekdaysInMonth(monthKey, customStart, customEnd) * shiftHours;
+    let count = this.countWeekdaysInMonth(monthKey, customStart, customEnd);
+
+    if (organizationId) {
+      const holidays = await this.holidayService.findByMonth(organizationId, monthKey);
+      
+      const { start, end } = this.getMonthDateRange(monthKey);
+      const actualStart = customStart ? new Date(customStart) : start;
+      const actualEnd = customEnd ? new Date(customEnd) : end;
+      if (customStart) actualStart.setHours(0, 0, 0, 0);
+      if (customEnd) actualEnd.setHours(23, 59, 59, 999);
+
+      let weekdayHolidaysCount = 0;
+      for (const holiday of holidays) {
+        const d = new Date(holiday.date);
+        d.setHours(0, 0, 0, 0);
+        if (d >= actualStart && d <= actualEnd) {
+          const day = d.getDay();
+          // subtract if holiday falls on a weekday
+          if (day >= 1 && day <= 5) {
+            weekdayHolidaysCount++;
+          }
+        }
+      }
+      count = Math.max(0, count - weekdayHolidaysCount);
+    }
+
+    return count * shiftHours;
   }
 
   async getWorkedHoursForUser(
@@ -124,7 +152,7 @@ export class PayrollService {
       );
     }
 
-    const expectedHours = await this.getExpectedHoursForMonth(monthKey, user.shift, customStartDate, customEndDate);
+    const expectedHours = await this.getExpectedHoursForMonth(monthKey, organizationId, user.shift, customStartDate, customEndDate);
     if (expectedHours <= 0) {
       throw new BadRequestException(`User ${userId} has no active shift assigned or 0 expected hours`);
     }
@@ -215,7 +243,7 @@ export class PayrollService {
 
     return {
       month: monthKey,
-      expectedHoursPerUser: await this.getExpectedHoursForMonth(monthKey),
+      expectedHoursPerUser: await this.getExpectedHoursForMonth(monthKey, organizationId),
       hoursPerWorkday: HOURS_PER_WORKDAY,
       totalUsers: users.length,
       generated,
