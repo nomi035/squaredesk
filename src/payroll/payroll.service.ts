@@ -24,7 +24,7 @@ export class PayrollService {
     private readonly attendanceRepository: Repository<Attendance>,
     private readonly attendanceService: AttendanceService,
     private readonly holidayService: HolidayService,
-  ) {}
+  ) { }
 
   getCurrentMonthKey(date = new Date()): string {
     const year = date.getFullYear();
@@ -45,7 +45,7 @@ export class PayrollService {
     const { start, end } = this.getMonthDateRange(monthKey);
     const actualStart = customStart ? new Date(customStart) : start;
     const actualEnd = customEnd ? new Date(customEnd) : end;
-    
+
     // Ensure times are correct for custom dates
     if (customStart) actualStart.setHours(0, 0, 0, 0);
     if (customEnd) actualEnd.setHours(23, 59, 59, 999);
@@ -68,7 +68,7 @@ export class PayrollService {
 
     if (organizationId) {
       const holidays = await this.holidayService.findByMonth(organizationId, monthKey);
-      
+
       const { start, end } = this.getMonthDateRange(monthKey);
       const actualStart = customStart ? new Date(customStart) : start;
       const actualEnd = customEnd ? new Date(customEnd) : end;
@@ -102,7 +102,7 @@ export class PayrollService {
     const { start, end } = this.getMonthDateRange(monthKey);
     const actualStart = customStart ? new Date(customStart) : start;
     const actualEnd = customEnd ? new Date(customEnd) : end;
-    
+
     if (customStart) actualStart.setHours(0, 0, 0, 0);
     if (customEnd) actualEnd.setHours(23, 59, 59, 999);
 

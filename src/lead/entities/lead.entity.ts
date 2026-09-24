@@ -61,6 +61,9 @@ export class Lead extends BaseEntity {
   @Column({ type: 'jsonb', nullable: true })
   additionalData: Record<string, any>;
 
+  @Column({ nullable: true })
+  leadType: string;
+
   // User who claimed the lead
   @Column()
   userId: number;

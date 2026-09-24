@@ -49,14 +49,19 @@ export class LeadService {
       comment: outreach.comment,
       status: outreach.status,
       additionalData: outreach.additionalData,
+      leadType: createLeadDto.leadType || 'General Lead',
     });
 
     return await this.leadRepository.save(lead);
   }
 
   async findAll(userId: number, role: string, organizationId: number, query: any) {
-    const { startDate, endDate, targetUserId } = query;
+    const { startDate, endDate, targetUserId, leadType } = query;
     const whereClause: any = {};
+
+    if (leadType) {
+      whereClause.leadType = leadType;
+    }
 
     // Filter by date
     if (startDate && endDate) {
@@ -86,7 +91,7 @@ export class LeadService {
   }
 
   async getUsersWithLeads(organizationId: number) {
-    // Returns distinct users who have leads in this organization
+    // Returns distinct users/leadType pairs who have leads in this organization
     const leads = await this.leadRepository.find({
       where: { organizationId },
       relations: ['user'],
@@ -94,17 +99,35 @@ export class LeadService {
 
     const userMap = new Map();
     leads.forEach((lead) => {
-      if (lead.user && !userMap.has(lead.user.id)) {
-        userMap.set(lead.user.id, {
-          id: lead.user.id,
-          firstName: lead.user.firstName,
-          lastName: lead.user.lastName,
-          role: lead.user.role,
-        });
+      if (lead.user) {
+        const type = lead.leadType || 'General Lead';
+        const key = `${lead.user.id}-${type}`;
+        if (!userMap.has(key)) {
+          userMap.set(key, {
+            id: lead.user.id,
+            firstName: lead.user.firstName,
+            lastName: lead.user.lastName,
+            role: lead.user.role,
+            leadType: type,
+          });
+        }
       }
     });
 
     return Array.from(userMap.values());
+  }
+
+  async update(id: number, updateData: { leadType?: string }) {
+    const lead = await this.leadRepository.findOne({ where: { id } });
+    if (!lead) {
+      throw new NotFoundException('Lead not found');
+    }
+    
+    if (updateData.leadType) {
+      lead.leadType = updateData.leadType;
+    }
+    
+    return await this.leadRepository.save(lead);
   }
 
   async remove(id: number) {
@@ -113,5 +136,19 @@ export class LeadService {
       throw new NotFoundException('Lead not found');
     }
     return await this.leadRepository.remove(lead);
+  }
+
+  async removeByUser(userId: number, organizationId: number, leadType?: string) {
+    const whereClause: any = { userId, organizationId };
+    if (leadType) {
+      whereClause.leadType = leadType;
+    }
+    const leads = await this.leadRepository.find({
+      where: whereClause,
+    });
+    if (leads.length === 0) {
+      throw new NotFoundException('No leads found for this user');
+    }
+    return await this.leadRepository.remove(leads);
   }
 }
