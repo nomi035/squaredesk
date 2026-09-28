@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, IsNull } from 'typeorm';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { Lead } from './entities/lead.entity';
 import { Outreach } from 'src/outreach/entities/outreach.entity';
@@ -57,10 +57,17 @@ export class LeadService {
 
   async findAll(userId: number, role: string, organizationId: number, query: any) {
     const { startDate, endDate, targetUserId, leadType } = query;
-    const whereClause: any = {};
+    let whereCondition: any = {};
 
-    if (leadType) {
-      whereClause.leadType = leadType;
+    // Role-based visibility
+    if (role === 'admin') {
+      whereCondition.organizationId = organizationId;
+      if (targetUserId) {
+        whereCondition.userId = targetUserId;
+      }
+    } else {
+      // Manager and Employee see only their own leads
+      whereCondition.userId = userId;
     }
 
     // Filter by date
@@ -69,22 +76,21 @@ export class LeadService {
       const end = new Date(endDate);
       start.setHours(0, 0, 0, 0);
       end.setHours(23, 59, 59, 999);
-      whereClause.createdAt = Between(start, end);
+      whereCondition.createdAt = Between(start, end);
     }
 
-    // Role-based visibility
-    if (role === 'admin') {
-      whereClause.organizationId = organizationId;
-      if (targetUserId) {
-        whereClause.userId = targetUserId;
-      }
-    } else {
-      // Manager and Employee see only their own leads
-      whereClause.userId = userId;
+    if (leadType === 'General Lead') {
+      whereCondition = [
+        { ...whereCondition, leadType: 'General Lead' },
+        { ...whereCondition, leadType: IsNull() },
+        { ...whereCondition, leadType: '' }
+      ];
+    } else if (leadType) {
+      whereCondition.leadType = leadType;
     }
 
     return await this.leadRepository.find({
-      where: whereClause,
+      where: whereCondition,
       relations: ['user'], // So we can see the lead owner
       order: { createdAt: 'DESC' },
     });
@@ -139,12 +145,22 @@ export class LeadService {
   }
 
   async removeByUser(userId: number, organizationId: number, leadType?: string) {
-    const whereClause: any = { userId, organizationId };
-    if (leadType) {
-      whereClause.leadType = leadType;
+    let whereCondition: any;
+    
+    if (leadType === 'General Lead') {
+      whereCondition = [
+        { userId, organizationId, leadType: 'General Lead' },
+        { userId, organizationId, leadType: IsNull() },
+        { userId, organizationId, leadType: '' }
+      ];
+    } else if (leadType) {
+      whereCondition = { userId, organizationId, leadType };
+    } else {
+      whereCondition = { userId, organizationId };
     }
+
     const leads = await this.leadRepository.find({
-      where: whereClause,
+      where: whereCondition,
     });
     if (leads.length === 0) {
       throw new NotFoundException('No leads found for this user');
