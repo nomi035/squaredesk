@@ -90,6 +90,8 @@ export class OutreachController {
   @ApiQuery({ name: 'disposition', required: false, description: 'Filter by disposition (partial match)' })
   @ApiQuery({ name: 'startDate', required: false, description: 'Filter from enumeration date (YYYY-MM-DD)' })
   @ApiQuery({ name: 'toDate', required: false, description: 'Filter to enumeration date (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'dispStartDate', required: false, description: 'Filter from disposition date (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'dispToDate', required: false, description: 'Filter to disposition date (YYYY-MM-DD)' })
   @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, description: 'Items per page (default: 20, max: 100)' })
   @ApiQuery({ name: 'providerFileId', required: false, description: 'Filter by file' })
@@ -101,8 +103,11 @@ export class OutreachController {
     @Query('disposition') disposition?: string,
     @Query('startDate') startDate?: string,
     @Query('toDate') toDate?: string,
+    @Query('dispStartDate') dispStartDate?: string,
+    @Query('dispToDate') dispToDate?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('search') search?: string,
   ) {
     return this.outreachService.findAll(user.organization, {
       providerFileId: providerFileId ? Number(providerFileId) : undefined,
@@ -111,6 +116,9 @@ export class OutreachController {
       disposition,
       startDate,
       toDate,
+      dispStartDate,
+      dispToDate,
+      search,
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
     });
@@ -124,6 +132,8 @@ export class OutreachController {
   @ApiQuery({ name: 'disposition', required: false, description: 'Filter by disposition (partial match)' })
   @ApiQuery({ name: 'startDate', required: false, description: 'Filter from enumeration date (YYYY-MM-DD)' })
   @ApiQuery({ name: 'toDate', required: false, description: 'Filter to enumeration date (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'dispStartDate', required: false, description: 'Filter from disposition date (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'dispToDate', required: false, description: 'Filter to disposition date (YYYY-MM-DD)' })
   @ApiQuery({ name: 'providerFileId', required: false, description: 'Filter by file' })
   exportAll(
     @currentUser() user: { organization: number },
@@ -133,6 +143,9 @@ export class OutreachController {
     @Query('disposition') disposition?: string,
     @Query('startDate') startDate?: string,
     @Query('toDate') toDate?: string,
+    @Query('dispStartDate') dispStartDate?: string,
+    @Query('dispToDate') dispToDate?: string,
+    @Query('search') search?: string,
   ) {
     return this.outreachService.findAllForExport(user.organization, {
       providerFileId: providerFileId ? Number(providerFileId) : undefined,
@@ -141,6 +154,9 @@ export class OutreachController {
       disposition,
       startDate,
       toDate,
+      dispStartDate,
+      dispToDate,
+      search,
     });
   }
 
@@ -153,6 +169,8 @@ export class OutreachController {
   @ApiQuery({ name: 'taxonomy', required: false, description: 'Filter by taxonomy (partial match)' })
   @ApiQuery({ name: 'disposition', required: false, description: 'Filter by disposition (partial match)' })
 
+  @ApiQuery({ name: 'dispStartDate', required: false, description: 'Filter from disposition date (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'dispToDate', required: false, description: 'Filter to disposition date (YYYY-MM-DD)' })
   @ApiQuery({ name: 'providerFileId', required: false, description: 'Filter by file' })
   getGraphData(
     @currentUser() user: { organization: number },
@@ -162,6 +180,8 @@ export class OutreachController {
     @Query('disposition') disposition?: string,
     @Query('startDate') startDate?: string,
     @Query('toDate') toDate?: string,
+    @Query('dispStartDate') dispStartDate?: string,
+    @Query('dispToDate') dispToDate?: string,
   ) {
     return this.outreachService.getGraphData(user.organization, {
       providerFileId: providerFileId ? Number(providerFileId) : undefined,
@@ -170,6 +190,8 @@ export class OutreachController {
       disposition,
       startDate,
       toDate,
+      dispStartDate,
+      dispToDate,
     });
   }
 
@@ -203,6 +225,23 @@ export class OutreachController {
       user.organization,
       user.userId,
       createDto,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Patch(':id/comments/:commentId')
+  updateComment(
+    @Param('id') id: string,
+    @Param('commentId') commentId: string,
+    @Body() updateDto: CreateOutreachCommentDto,
+    @currentUser() user: { organization: number },
+  ) {
+    return this.outreachService.updateComment(
+      commentId,
+      +id,
+      user.organization,
+      updateDto,
     );
   }
 
