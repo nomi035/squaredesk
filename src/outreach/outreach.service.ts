@@ -230,6 +230,9 @@ export class OutreachService {
       disposition?: string;
       startDate?: string;
       toDate?: string;
+      dispStartDate?: string;
+      dispToDate?: string;
+      search?: string;
     },
   ) {
     const providerFileId = filters?.providerFileId;
@@ -238,10 +241,20 @@ export class OutreachService {
     const disposition = this.normalizeFilter(filters?.disposition);
     const startDate = this.parseDateFilter(filters?.startDate);
     const toDate = this.parseDateFilter(filters?.toDate);
+    const dispStartDate = this.parseDateFilter(filters?.dispStartDate);
+    const dispToDate = this.parseDateFilter(filters?.dispToDate);
+    const search = this.normalizeFilter(filters?.search);
 
     const query = this.outreachRepository
       .createQueryBuilder('outreach')
       .where('outreach.organizationId = :organizationId', { organizationId });
+
+    if (search) {
+      query.andWhere(
+        '(outreach.npi ILIKE :search OR outreach.name ILIKE :search OR outreach.email ILIKE :search OR outreach.practicePhone ILIKE :search OR outreach.authFirst ILIKE :search OR outreach.authLast ILIKE :search OR outreach.taxonomy ILIKE :search OR outreach.city ILIKE :search OR outreach.state ILIKE :search OR outreach.postalCode ILIKE :search OR outreach.authPhone ILIKE :search OR outreach.disposition ILIKE :search OR outreach.csvComments ILIKE :search OR outreach.comment ILIKE :search OR outreach.status ILIKE :search)',
+        { search: `%${search}%` }
+      );
+    }
 
     if (state) {
       const statesArray = state.split(',').map((s) => s.trim().toUpperCase());
@@ -263,10 +276,14 @@ export class OutreachService {
     }
 
     if (disposition) {
-      query.andWhere(
-        "TRIM(LOWER(COALESCE(outreach.disposition, ''))) = :disposition",
-        { disposition: disposition.trim().toLowerCase() },
-      );
+      if (disposition.trim().toLowerCase() === 'none') {
+        query.andWhere("TRIM(LOWER(COALESCE(outreach.disposition, ''))) = ''");
+      } else {
+        query.andWhere(
+          "TRIM(LOWER(COALESCE(outreach.disposition, ''))) = :disposition",
+          { disposition: disposition.trim().toLowerCase() },
+        );
+      }
     }
 
     if (startDate) {
@@ -275,6 +292,14 @@ export class OutreachService {
 
     if (toDate) {
       query.andWhere('outreach.enumerationDate <= CAST(:toDate AS DATE)', { toDate });
+    }
+
+    if (dispStartDate) {
+      query.andWhere('CAST(outreach.dispositionUpdatedAt AS DATE) >= CAST(:dispStartDate AS DATE)', { dispStartDate });
+    }
+
+    if (dispToDate) {
+      query.andWhere('CAST(outreach.dispositionUpdatedAt AS DATE) <= CAST(:dispToDate AS DATE)', { dispToDate });
     }
 
     return query;
@@ -289,6 +314,9 @@ export class OutreachService {
       disposition?: string;
       startDate?: string;
       toDate?: string;
+      dispStartDate?: string;
+      dispToDate?: string;
+      search?: string;
       page?: number;
       limit?: number;
     },
@@ -353,6 +381,9 @@ export class OutreachService {
       disposition?: string;
       startDate?: string;
       toDate?: string;
+      dispStartDate?: string;
+      dispToDate?: string;
+      search?: string;
     },
   ) {
     const records = await this.buildFilteredQuery(organizationId, filters)
@@ -378,6 +409,8 @@ export class OutreachService {
       disposition?: string;
       startDate?: string;
       toDate?: string;
+      dispStartDate?: string;
+      dispToDate?: string;
     },
   ) {
     const taxonomyQuery = this.buildFilteredQuery(organizationId, filters)
@@ -477,6 +510,87 @@ export class OutreachService {
       where: { id: saved.id },
       relations: ['commentedBy'],
     });
+
+    return {
+      id: comment.id,
+      comment: comment.comment,
+      createdAt: comment.createdAt,
+      commentedBy: {
+        id: comment.commentedBy.id,
+        firstName: comment.commentedBy.firstName,
+        lastName: comment.commentedBy.lastName,
+        email: comment.commentedBy.email,
+        profilePic: comment.commentedBy.profilePic,
+      },
+    };
+  }
+
+  async updateComment(
+    commentId: number | string,
+    outreachId: number,
+    organizationId: number,
+    updateDto: CreateOutreachCommentDto,
+  ) {
+    const outreach = await this.findOutreachOrFail(outreachId, organizationId);
+
+    if (typeof commentId === 'string' && Number.isNaN(Number(commentId))) {
+      const isCsv = commentId.startsWith('csv-');
+      const isLegacyComment = commentId.startsWith('comment-');
+      const isRecord = commentId.startsWith('record-');
+
+      if (isCsv) {
+        const parts = commentId.split('-');
+        const indexStr = parts[2];
+        if (indexStr !== undefined) {
+           try {
+             const parsed = JSON.parse(outreach.csvComments || '[]');
+             if (Array.isArray(parsed)) {
+                const index = parseInt(indexStr, 10);
+                if (typeof parsed[index] === 'string') {
+                  parsed[index] = updateDto.comment.trim();
+                } else if (parsed[index] && typeof parsed[index] === 'object') {
+                  parsed[index].comment = updateDto.comment.trim();
+                }
+                outreach.csvComments = JSON.stringify(parsed);
+             }
+           } catch {
+             outreach.csvComments = updateDto.comment.trim();
+           }
+        } else {
+           outreach.csvComments = updateDto.comment.trim();
+        }
+        await this.outreachRepository.save(outreach);
+        return { id: commentId, comment: updateDto.comment.trim() };
+      }
+
+      if (isLegacyComment) {
+        outreach.comment = updateDto.comment.trim();
+        await this.outreachRepository.save(outreach);
+        return { id: commentId, comment: updateDto.comment.trim() };
+      }
+      
+      // Fallback for record-* or any other string id if needed
+      if (isRecord) {
+        outreach.csvComments = updateDto.comment.trim();
+        await this.outreachRepository.save(outreach);
+        return { id: commentId, comment: updateDto.comment.trim() };
+      }
+
+      throw new BadRequestException('Cannot update this type of legacy comment');
+    }
+
+    const numericId = Number(commentId);
+    const comment = await this.outreachCommentRepository.findOne({
+      where: { id: numericId, outreachId },
+      relations: ['commentedBy'],
+    });
+
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    comment.comment = updateDto.comment.trim();
+    await this.outreachCommentRepository.save(comment);
 
     return {
       id: comment.id,
